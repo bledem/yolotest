@@ -1,7 +1,7 @@
 __pycache__/
 backup
 sample_images/*.jpg
-*.png
+data/*
 *result.jpg
 *.avi
 *.model
