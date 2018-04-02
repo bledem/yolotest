@@ -1,0 +1,13 @@
+/home/betty/Documents/BBox-Label-Tool-Python3.x-master/LabelsYOLO/001/n04255586_1681.jpg
+/home/betty/Documents/BBox-Label-Tool-Python3.x-master/LabelsYOLO/001/n04255586_1034.jpg
+/home/betty/Documents/BBox-Label-Tool-Python3.x-master/LabelsYOLO/001/n04255586_1140.jpg
+/home/betty/Documents/BBox-Label-Tool-Python3.x-master/LabelsYOLO/001/n04255586_1211.jpg
+/home/betty/Documents/BBox-Label-Tool-Python3.x-master/LabelsYOLO/001/n04255586_1217.jpg
+/home/betty/Documents/BBox-Label-Tool-Python3.x-master/LabelsYOLO/001/n04255586_1422.jpg
+/home/betty/Documents/BBox-Label-Tool-Python3.x-master/LabelsYOLO/001/n04255586_1585.jpg
+/home/betty/Documents/BBox-Label-Tool-Python3.x-master/LabelsYOLO/001/n04255586_143.jpg
+/home/betty/Documents/BBox-Label-Tool-Python3.x-master/LabelsYOLO/001/n04255586_1127.jpg
+/home/betty/Documents/BBox-Label-Tool-Python3.x-master/LabelsYOLO/001/n04255586_1277.jpg
+/home/betty/Documents/BBox-Label-Tool-Python3.x-master/LabelsYOLO/001/n04255586_1736.jpg
+/home/betty/Documents/BBox-Label-Tool-Python3.x-master/LabelsYOLO/001/n04255586_1078.jpg
+/home/betty/Documents/BBox-Label-Tool-Python3.x-master/LabelsYOLO/001/n04255586_1199.jpg
