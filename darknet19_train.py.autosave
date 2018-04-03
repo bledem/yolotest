@@ -68,7 +68,7 @@ for batch in range(max_batches):
     #	cv2.imshow("w", image)
     #	cv2.waitKey(100)
     x = Variable(x)
-    print('GPU infop', cuda.get_array_module(x))
+    #print('GPU infop', cuda.get_array_module(x))
     x.to_gpu(0)
     one_hot_t = []
     for i in range(len(t)):
