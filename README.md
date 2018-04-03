@@ -1,4 +1,8 @@
 # YOLOv2（Chainerバージョン）
+
+This code has been taken here "https://github.com/leetenki/YOLOv2" and modified according to my research in Nakazawa laboratory in Keio University.
+The following text is the taken README.md
+
 YOLOv2は、2016年12月25日時点の、速度、精度ともに世界最高のリアルタイム物体検出手法です。
 
 本リポジトリは、YOLOv2の論文をChainer上で再現実装したものです。darknetオリジナルの学習済みパラメータファイルをchainerで読み込むためのパーサと、chainer上でゼロからYOLOv2を訓練するための実装が含まれています。（YOLOv2のtiny版に関してはChainerで読み込む方法が<a href="http://qiita.com/ashitani/items/566cf9234682cb5f2d60">こちら</a>のPPAPの記事で紹介されています。今回は、Full Version のYOLOv2の読込みと、学習ともにChainer実装しています。）
