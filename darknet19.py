@@ -134,7 +134,7 @@ class Darknet19Predictor(Chain):
             #print('shapes', y.shape, t.shape)
             loss = F.mean_squared_error(y, t)
             #loss = sum_of_squared_error(y, t)
-            print('loss value', loss)
+            #print('loss value', loss)
             accuracy = F.accuracy(y, t.data.argmax(axis=1).astype(np.int32))
         else: # use softmax cross entropy when label is normal label
             loss = F.softmax_cross_entropy(y, t)

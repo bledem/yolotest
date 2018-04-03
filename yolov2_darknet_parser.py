@@ -48,9 +48,6 @@ layers=[
     [512, 1024, 3], 
     [1024, 512, 1], 
     [512, 1024, 3], 
-    [1024, 1024, 3], 
-    [1024, 1024, 3], 
-    [3072, 1024, 3], 
 ]
 
 offset=0
@@ -99,5 +96,5 @@ offset+=out_ch*in_ch*ksize*ksize
 exec(txt)
 print(i+2, offset)
 
-print("save weights file to yolov2_darknet.model")
-serializers.save_hdf5("yolov2_darknet.model", yolov2)
+print("save weights file to darknet19.model")
+serializers.save_hdf5("darknet19.model", yolov2)

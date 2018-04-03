@@ -8,9 +8,20 @@ from chainer import serializers, optimizers, Variable, cuda
 import chainer.functions as F
 from darknet19 import *
 from lib.image_generator import *
+import matplotlib
+from laplotter import LossAccPlotter
 
+plotter = LossAccPlotter(title="YOLO loss and accuracy",
+                         save_to_filepath="plot.png",
+                         show_regressions=True,
+                         show_averages=True,
+                         show_loss_plot=True,
+                         show_acc_plot=True,
+                         show_plot_window=True,
+                         x_label="Batch")
 # hyper parameters
 input_height, input_width = (224, 224)
+#weight_file = "./darknet19.model"
 item_path = "./items"
 background_path = "./backgrounds"
 label_file = "./data/label.txt"
@@ -38,6 +49,7 @@ if os.path.isfile(backup_file):
 model.predictor.train = True
 cuda.get_device(0).use()
 model.to_gpu(0) # for gpu
+start = time.time()
 
 optimizer = optimizers.MomentumSGD(lr=learning_rate, momentum=momentum)
 optimizer.use_cleargrads()
@@ -68,7 +80,7 @@ for batch in range(max_batches):
     #	cv2.imshow("w", image)
     #	cv2.waitKey(100)
     x = Variable(x)
-    print('GPU infop', cuda.get_array_module(x))
+    #print('GPU infop', cuda.get_array_module(x))
     x.to_gpu(0)
     one_hot_t = []
     for i in range(len(t)):
@@ -78,7 +90,10 @@ for batch in range(max_batches):
     one_hot_t.to_gpu(0)
 
     y, loss, accuracy = model(x, one_hot_t)
-    print("[batch %d (%d images)] learning rate: %f, loss: %f, accuracy: %f" % (batch+1, (batch+1) * batch_size, optimizer.lr, loss.data, accuracy.data))
+    now = time.time() - start
+    print("[batch %d (%d images)] learning rate: %f, loss: %f, accuracy: %f, time: %f" % (batch+1, (batch+1) * batch_size, optimizer.lr, loss.data, accuracy.data, now))
+
+    plotter.add_values(batch,loss_train=loss.data, acc_train=accuracy.data)
 
     model.zerograds()
     model.cleargrads()
@@ -88,11 +103,13 @@ for batch in range(max_batches):
     optimizer.update()
 
     # save model
-    if (batch+1) % 1000 == 0:
+    if (batch) % 500 == 0:
         model_file = "%s/%s.model" % (backup_path, batch+1)
         print("saving model to %s" % (model_file))
         serializers.save_hdf5(model_file, model)
         serializers.save_hdf5(backup_file, model)
+        plotter.block()
+
 
 print("saving model to %s/darknet19_final.model" % (backup_path))
 serializers.save_hdf5("%s/darknet19_final.model" % (backup_path), model)
