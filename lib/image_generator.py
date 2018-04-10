@@ -212,7 +212,7 @@ class ImageGenerator():
             #    )
             #cv2.imshow("w", sample_image)
             #cv2.waitKey(1000)
-
+            #cv2.imwrite( "data/training/img%03i.png"  %i, sample_image )
             sample_image = np.asarray(sample_image, dtype=np.float32) / 255.0
             sample_image = sample_image.transpose(2, 0, 1)
             x.append(sample_image)

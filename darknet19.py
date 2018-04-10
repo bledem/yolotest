@@ -82,7 +82,7 @@ class Darknet19(Chain):
 
     def __call__(self, x):
         batch_size = x.data.shape[0]
-        print('shape', x.data.shape)
+        #print('shape', x.data.shape)
         ##### common layer
         h = F.leaky_relu(self.bias1(self.bn1(self.conv1(x),  finetune=self.finetune)), slope=0.1)
         h = F.max_pooling_2d(h, ksize=2, stride=2, pad=0)
@@ -127,6 +127,13 @@ class Darknet19Predictor(Chain):
 
     def __call__(self, x, t):
         y = self.predictor(x)
+
+        #test = self.predict(x).data
+        #predicted_order = np.argsort(-test.flatten())
+        #for index in predicted_order:
+            #prob = test.flatten()[index] * 100
+            #print("clase: %.2f%%" % ( prob))
+        #print("results of the operation",  F.softmax(y).data)
 
         if t.ndim == 2: # use squared error when label is one hot label
             y = F.softmax(y)

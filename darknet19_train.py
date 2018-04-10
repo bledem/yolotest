@@ -25,9 +25,9 @@ input_height, input_width = (224, 224)
 item_path = "./items"
 background_path = "./backgrounds"
 label_file = "./data/label.txt"
-backup_path = "backup"
+backup_path = "./backup"
 batch_size = 32
-max_batches = 3000
+max_batches = 2000
 learning_rate = 0.001
 lr_decay_power = 4
 momentum = 0.9
@@ -43,7 +43,7 @@ with open(label_file, "r") as f:
 # load model
 print("loading model...")
 model = Darknet19Predictor(Darknet19())
-backup_file = "%s/backup.model" % (backup_path)
+backup_file = "%s/501.model" % (backup_path)
 if os.path.isfile(backup_file):
     serializers.load_hdf5(backup_file, model) # load saved model
 model.predictor.train = True
@@ -75,10 +75,15 @@ for batch in range(max_batches):
         delta_sat_scale=0.5,
         delta_val_scale=0.5
     )
-    #for elt in x:
-    #	image = np.transpose(elt, (1, 2, 0)).copy()
-    #	cv2.imshow("w", image)
-    #	cv2.waitKey(100)
+    #for i, image in enumerate(x):
+        #for truth_box in t[i]:
+           # print(truth_box['label'])
+        #image = np.transpose(image, (1, 2, 0)).copy()
+        #cv2.imshow("w", image)
+        #cv2.waitKey(0)
+
+    #cv2.imshow("w", image)
+    #cv2.waitKey(0)
     x = Variable(x)
     #print('GPU infop', cuda.get_array_module(x))
     x.to_gpu(0)
@@ -108,7 +113,6 @@ for batch in range(max_batches):
         print("saving model to %s" % (model_file))
         serializers.save_hdf5(model_file, model)
         serializers.save_hdf5(backup_file, model)
-        plotter.block()
 
 
 print("saving model to %s/darknet19_final.model" % (backup_path))

@@ -13,7 +13,7 @@ args = parser.parse_args()
 
 # hyper parameters
 input_height, input_width = (224, 224)
-weight_file = "./backup/darknet19_final.model"
+weight_file = "./backup/Backup-first/1501.model"
 label_file = "./data/label.txt"
 image_file = args.path
 
@@ -21,8 +21,8 @@ image_file = args.path
 with open(label_file, "r") as f:
     labels = f.read().strip().split("\n")
 
-# read image
-print("loading image...")
+# read image and process on it
+#print("loading image...")
 img = cv2.imread(image_file)
 img = cv2.resize(img, (input_height, input_width))
 img = np.asarray(img, dtype=np.float32) / 255.0
