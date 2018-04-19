@@ -45,7 +45,7 @@ with open(label_file, "r") as f:
 # load model
 print("loading model...")
 model = Darknet19Predictor(Darknet19())
-backup_file = "%s/501.model" % (backup_path)
+backup_file = "%s/201.model" % (backup_path)
 if os.path.isfile(backup_file):
     serializers.load_hdf5(backup_file, model) # load saved model
 model.predictor.train = True
@@ -145,22 +145,27 @@ for batch in range(max_batches):
 
 
     # save model
-    if (batch) % 2 == 0:
+    if (batch) % 100 == 0:
         model_file = "%s/%s.model" % (backup_path, batch+1)
         print("saving model to %s" % (model_file))
         serializers.save_hdf5(model_file, model)
         serializers.save_hdf5(backup_file, model)
 
+        #try to load from here
+        weight_file_test = "./backup/fourcans.model"
+        model_test = Darknet19Predictor(Darknet19())
+        serializers.load_hdf5(weight_file_test, model_test) # load saved model
+        model_test.predictor.train = False
+
         # read image and process on it
-        print("final results", result_compare)
-        img1 = cv2.imread("./items/sprite.png")
-        img2 = cv2.imread("./items/coca-zero.png")
+        img1 = cv2.imread("./items/schweps.png")
+        img2 = cv2.imread("./items/pet_water.png")
 
         img1 = cv2.resize(img1, (input_height, input_width))
         img2 = cv2.resize(img2, (input_height, input_width))
 
         cv2.imshow('test feed', img2)
-        cv2.waitKey(500)
+        cv2.waitKey(50)
         #print('shape', img2.shape[:2])
 
         img1 = img1[:,:,:3]
@@ -170,7 +175,7 @@ for batch in range(max_batches):
         img2 = np.asarray(img2, dtype=np.float32) / 255.0
         img2 = img2.transpose(2, 0, 1)
         # load model
-        model.predictor.train = False
+        model_test.predictor.train = False
 
         # forward
         x = []
@@ -181,30 +186,43 @@ for batch in range(max_batches):
         x = Variable(x)
 
         if hasattr(cuda, "cupy"):
+            print('hasatt inside')
             cuda.get_device(0).use()
-            model.to_gpu()
+            model_test.to_gpu()
             x.to_gpu()
 
         one_hot_t = []
-        first = [1,0,0,0]
-        secund = [0,1,0,0]
+        first = [0,0,0,1]
+        secund = [0,0,1,0]
         one_hot_t.append(np.array(first))
         one_hot_t.append(np.array(secund))
         one_hot_t = np.array(one_hot_t, dtype=np.float32)
         one_hot_t = Variable(one_hot_t)
         one_hot_t.to_gpu(0)
 
-        y, loss, accuracy = model(x, one_hot_t)
-        #if hasattr(cuda, "cupy"):
-           # y = y.get()
-        print("final prediction", y, "accuracy", accuracy)
-        #predicted_order = np.argsort(-y.flatten())
-        #for index in predicted_order:
-            #cls = labels[index]
-            #prob = y.flatten()[index] * 100
-            #print("%16s : %.2f%%" % (cls, prob))
-        model.zerograds()
-        model.cleargrads()
+        #y, loss, accuracy = model(x, one_hot_t)
+        result = model_test.predict(x).data
+        result1= (result[0,:])
+        result2= (result[1,:])
+
+        if hasattr(cuda, "cupy"):
+            result1 = result1.get()
+            result2= result2.get()
+
+
+        #print("final prediction", y, "accuracy", accuracy)
+        predicted_order = np.argsort(-result1.flatten())
+        predicted_order2 = np.argsort(-result2.flatten())
+
+        for index in predicted_order:
+            cls = labels[index]
+            prob = result1.flatten()[index] * 100
+            print("%16s : %.2f%%" % (cls, prob))
+        for index in predicted_order2:
+            cls = labels[index]
+            prob = result2.flatten()[index] * 100
+            print("%16s : %.2f%%" % (cls, prob))
+        model_test.zerograds()
 
 print("saving model to %s/darknet19_final.model" % (backup_path))
 serializers.save_hdf5("%s/darknet19_final.model" % (backup_path), model)

@@ -13,21 +13,24 @@ args = parser.parse_args()
 
 # hyper parameters
 input_height, input_width = (224, 224)
-weight_file = "./backup/9.model"
+weight_file = "./backup/fourcans.model"
 label_file = "./data/label.txt"
 image_file = args.path
 
 # read labels
 with open(label_file, "r") as f:
     labels = f.read().strip().split("\n")
-
+x=[]
 # read image and process on it
 #print("loading image...")
 img = cv2.imread(image_file)
 img = cv2.resize(img, (input_height, input_width))
+img = img[:,:,:3]
 img = np.asarray(img, dtype=np.float32) / 255.0
 img = img.transpose(2, 0, 1)
-
+x.append(np.array(img))
+x = np.asarray(x, dtype=np.float32)
+x = Variable(x)
 # load model
 print("loading model...")
 model = Darknet19Predictor(Darknet19())
@@ -35,8 +38,7 @@ serializers.load_hdf5(weight_file, model) # load saved model
 model.predictor.train = False
 
 # forward
-x_data = img[np.newaxis, :, :, :]
-x = Variable(x_data)
+#x_data = img[np.newaxis, :, :, :]
 if hasattr(cuda, "cupy"):
     cuda.get_device(0).use()
     model.to_gpu()
@@ -45,7 +47,6 @@ if hasattr(cuda, "cupy"):
 y = model.predict(x).data
 if hasattr(cuda, "cupy"):
     y = y.get()
-
 predicted_order = np.argsort(-y.flatten())
 for index in predicted_order:
     cls = labels[index]
