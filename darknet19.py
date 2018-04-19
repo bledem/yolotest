@@ -131,8 +131,8 @@ class Darknet19Predictor(Chain):
         #test = self.predict(x).data
         #predicted_order = np.argsort(-test.flatten())
         #for index in predicted_order:
-            #prob = test.flatten()[index] * 100
-            #print("clase: %.2f%%" % ( prob))
+         #   prob = test.flatten()[index] * 100
+          #  print("clase: %.2f%%" % ( prob))
         #print("results of the operation",  F.softmax(y).data)
 
         if t.ndim == 2: # use squared error when label is one hot label
@@ -141,9 +141,10 @@ class Darknet19Predictor(Chain):
             #print('shapes', y.shape, t.shape)
             loss = F.mean_squared_error(y, t)
             #loss = sum_of_squared_error(y, t)
-            #print('loss value', loss)
+            #print('loss value in CNN', y, t)
             accuracy = F.accuracy(y, t.data.argmax(axis=1).astype(np.int32))
         else: # use softmax cross entropy when label is normal label
+            #print("cross entropy debug", y, t)
             loss = F.softmax_cross_entropy(y, t)
             accuracy = F.accuracy(y, t)
 

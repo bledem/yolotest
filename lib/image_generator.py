@@ -217,4 +217,67 @@ class ImageGenerator():
             sample_image = sample_image.transpose(2, 0, 1)
             x.append(sample_image)
         x = np.array(x)
+        #print("shape x correct", x.shape)
         return x, t
+        
+    def generate_simple_dataset(self, n_samples, w_in, h_in):
+        x = []
+        t = []
+        ground_truths = []
+        for i in range(n_samples):
+            class_id = np.random.randint(len(self.labels))
+            print("label", self.labels[class_id])
+
+            item = self.items[class_id]
+            #sample_image = random_sampling(item, crop_height, crop_width)
+            sample_image = cv2.resize(item, (w_in, h_in))
+
+
+            orig_h, orig_w = sample_image.shape[:2]
+            bbox = ((0, 0), (int(orig_h), int(orig_w)))
+            center_x = (bbox[1][0] + bbox[0][0]) / 2 / int(orig_w)
+            center_y = (bbox[1][1] + bbox[0][1]) / 2 / int(orig_h)
+            w = (bbox[1][0] - bbox[0][0]) / orig_w
+            h = (bbox[1][1] - bbox[0][1]) / orig_h
+            bbox = (center_x, center_y, w, h)
+            box = Box(bbox[0], bbox[1], bbox[2], bbox[3])
+            one_hot_label = np.zeros(len(self.labels))
+            one_hot_label[class_id] = 1
+            ground_truths.append({
+                "x": bbox[0],
+                "y": bbox[1],
+                "w": bbox[2],
+                "h": bbox[3],
+                "label": class_id,
+                "one_hot_label": one_hot_label
+            })
+            sample_image = sample_image[:, :, :3]
+            print(one_hot_label)
+
+            #print('shape', sample_image.shape[:2])
+
+            t.append(ground_truths)
+            cv2.imshow("w", sample_image)
+            cv2.waitKey(100)
+            sample_image = np.asarray(sample_image, dtype=np.float32) / 255.0
+            sample_image = sample_image.transpose(2, 0, 1)
+            vec = np.asarray(sample_image).astype(np.float32)
+
+            x.append(vec)
+        img = cv2.imread("./items/pet_water.png")
+        img = cv2.resize(img, (w_in, h_in))
+        cv2.imshow('test feed', img)
+        cv2.waitKey(500)
+        print('shape', img.shape[:2])
+        img = img[:,:,:3]
+        img = np.asarray(img, dtype=np.float32) / 255.0
+        img = img.transpose(2, 0, 1)
+        vec2 = np.asarray(img).astype(np.float32)
+
+        # load model
+        #model.predictor.train = False
+
+        # forward
+        x.append(vec2)
+        x = np.array(x)
+        return x,t
