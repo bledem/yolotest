@@ -3,7 +3,8 @@ backup
 sample_images/*.jpg
 data/
 001/
-*result.jpg
+*.jpg
+*.png
 *.avi
 *.model
 *.mov
