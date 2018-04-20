@@ -257,8 +257,8 @@ class ImageGenerator():
             #print('shape', sample_image.shape[:2])
 
             t.append(ground_truths)
-            cv2.imshow("w", sample_image)
-            cv2.waitKey(100)
+            #cv2.imshow("w", sample_image)
+            #cv2.waitKey(100)
             sample_image = np.asarray(sample_image, dtype=np.float32) / 255.0
             sample_image = sample_image.transpose(2, 0, 1)
             vec = np.asarray(sample_image).astype(np.float32)
@@ -266,8 +266,8 @@ class ImageGenerator():
             x.append(vec)
         img = cv2.imread("./items/pet_water.png")
         img = cv2.resize(img, (w_in, h_in))
-        cv2.imshow('test feed', img)
-        cv2.waitKey(500)
+        #cv2.imshow('test feed', img)
+        #cv2.waitKey(250)
         print('shape', img.shape[:2])
         img = img[:,:,:3]
         img = np.asarray(img, dtype=np.float32) / 255.0
