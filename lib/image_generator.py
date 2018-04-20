@@ -210,12 +210,14 @@ class ImageGenerator():
             #        (int((ground_truth["x"]+ground_truth["w"]/2)*crop_width), int((ground_truth["y"]+ground_truth["h"]/2)*crop_height)), 
             #        (0, 0, 255), 3
             #    )
-            #cv2.imshow("w", sample_image)
-            #cv2.waitKey(1000)
-            #cv2.imwrite( "data/training/img%03i.png"  %i, sample_image )
+            if i==2:
+                cv2.imshow("feed", sample_image)
+                #cv2.waitKey(500)
+                #cv2.imwrite( "data/training/img%03i.png"  %i, sample_image )
             sample_image = np.asarray(sample_image, dtype=np.float32) / 255.0
             sample_image = sample_image.transpose(2, 0, 1)
             x.append(sample_image)
+
         x = np.array(x)
         #print("shape x correct", x.shape)
         return x, t
@@ -278,6 +280,6 @@ class ImageGenerator():
         #model.predictor.train = False
 
         # forward
-        x.append(vec2)
+        #x.append(vec2)
         x = np.array(x)
         return x,t

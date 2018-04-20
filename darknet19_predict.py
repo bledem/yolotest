@@ -13,7 +13,7 @@ args = parser.parse_args()
 
 # hyper parameters
 input_height, input_width = (224, 224)
-weight_file = "./backup/41.model"
+weight_file = "./backup/301.model"
 label_file = "./data/label.txt"
 image_file = args.path
 

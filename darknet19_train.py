@@ -26,7 +26,7 @@ item_path = "./items"
 background_path = "./backgrounds"
 label_file = "./data/label.txt"
 backup_path = "./backup"
-batch_size = 10
+batch_size = 32
 max_batches = 2000
 learning_rate = 0.001
 lr_decay_power = 4
@@ -45,7 +45,7 @@ with open(label_file, "r") as f:
 # load model
 print("loading model...")
 model = Darknet19Predictor(Darknet19())
-backup_file = "%s/fourcans.model" % (backup_path)
+backup_file = "%s/301.model" % (backup_path)
 if os.path.isfile(backup_file):
     serializers.load_hdf5(backup_file, model) # load saved model
 model.predictor.train = True
@@ -78,14 +78,14 @@ for batch in range(max_batches):
         crop_height=input_height,
         min_item_scale=0.1,
         max_item_scale=1.3,
-        rand_angle=25,
+        rand_angle=45,
         minimum_crop=0.7,
         delta_hue=0.01,
         delta_sat_scale=0.5,
         delta_val_scale=0.5
     )
-    x_debug, t_debug = generator_debug.generate_simple_dataset(n_samples=batch_size, w_in=input_width,
-        h_in=input_height)
+   # x_debug, t_debug = generator_debug.generate_simple_dataset(n_samples=batch_size, w_in=input_width,
+    #    h_in=input_height)
 
 
     one_hot_t_special = [0.0,0.0,1.0,0.0]
@@ -95,10 +95,11 @@ for batch in range(max_batches):
     #print('GPU infop', cuda.get_array_module(x))
     x.to_gpu(0)
     one_hot_t = []
+
     #t = t_debug
     for i in range(len(t)):
-        one_hot_t.append(t[0][i]["one_hot_label"])
-    one_hot_t.append(one_hot_t_special)
+        one_hot_t.append(t[i][0]["one_hot_label"])
+    #one_hot_t.append(one_hot_t_special)
     one_hot_t = np.array(one_hot_t, dtype=np.float32)
     one_hot_t = Variable(one_hot_t)
     one_hot_t.to_gpu(0)
@@ -118,7 +119,7 @@ for batch in range(max_batches):
 
 
     # save model
-    if (batch) % 20== 0:
+    if (batch) % 100== 0:
         model_file = "%s/%s.model" % (backup_path, batch+1)
         print("saving model to %s" % (model_file))
         serializers.save_hdf5(model_file, model)

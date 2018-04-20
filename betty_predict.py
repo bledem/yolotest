@@ -25,15 +25,15 @@ for i,item in enumerate(item_files):
     labels.append(item.split("/")[-1].split(".")[0])
 
 
-weight_file_test = "./backup/261.model"
+weight_file_test = "./backup/101.model"
 model_test = Darknet19Predictor(Darknet19())
 serializers.load_hdf5(weight_file_test, model_test) # load saved model
 model_test.predictor.train = False
 
 # read image and process on it
 img1 = cv2.imread(image_file)
-img2 = cv2.imread("./items/sprite.png")
-img3 = cv2.imread("./items/pet_water.png")
+img2 = cv2.imread("./items/schweps.png")
+img3 = cv2.imread("./items/coca-zero.png")
 
 # forward
 x = []
@@ -42,13 +42,13 @@ img_list=[]
 img_list.append(img1)
 img_list.append(img2)
 img_list.append(img3)
-
+cv2.imshow('test feed', img1)
+cv2.waitKey(1000)
 
 #print('shape', img2.shape[:2])
 for elt in img_list:
     elt = cv2.resize(elt, (input_height, input_width))
-    cv2.imshow('test feed', elt)
-    cv2.waitKey(100)
+
     elt = elt[:,:,:3]
     elt = np.asarray(elt, dtype=np.float32) / 255.0
     elt = elt.transpose(2, 0, 1)
