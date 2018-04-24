@@ -45,7 +45,7 @@ with open(label_file, "r") as f:
 # load model
 print("loading model...")
 model = Darknet19Predictor(Darknet19())
-backup_file = "%s/301.model" % (backup_path)
+backup_file = "%s/401.model" % (backup_path)
 if os.path.isfile(backup_file):
     serializers.load_hdf5(backup_file, model) # load saved model
 model.predictor.train = True
@@ -119,7 +119,7 @@ for batch in range(max_batches):
 
 
     # save model
-    if (batch) % 100== 0:
+    if (batch) % 1000== 0:
         model_file = "%s/%s.model" % (backup_path, batch+1)
         print("saving model to %s" % (model_file))
         serializers.save_hdf5(model_file, model)

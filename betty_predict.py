@@ -23,9 +23,10 @@ labels = []
 input_height, input_width = (224, 224)
 for i,item in enumerate(item_files):
     labels.append(item.split("/")[-1].split(".")[0])
+    print(item.split("/")[-1].split(".")[0])
 
 
-weight_file_test = "./backup/101.model"
+weight_file_test = "./backup/1001.model"
 model_test = Darknet19Predictor(Darknet19())
 serializers.load_hdf5(weight_file_test, model_test) # load saved model
 model_test.predictor.train = False
