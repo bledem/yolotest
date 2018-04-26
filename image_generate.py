@@ -8,17 +8,18 @@ input_height = 448
 item_path = "./items"
 background_path = "./backgrounds"
 generator = ImageGenerator(item_path, background_path)
+batch_size = 100
 
 # generate random sample
 x, t = generator.generate_samples(
-    n_samples=64,
-    n_items=3,
+    n_samples=batch_size,
+    n_items=2,
     crop_width=input_width,
     crop_height=input_height,
-    min_item_scale=0.1,
-    max_item_scale=1,
-    rand_angle=30,
-    minimum_crop=0.5,
+    min_item_scale=0.5,
+    max_item_scale=2.5,
+    rand_angle=15,
+    minimum_crop=0.8,
     delta_hue=0.01,
     delta_sat_scale=0.5,
     delta_val_scale=0.5

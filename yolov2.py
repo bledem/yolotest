@@ -145,23 +145,23 @@ class YOLOv2Predictor(Chain):
         prob = F.softmax(prob) # probablitiyのacitivation
 
 
-        # 教師データの用意
-        tw = np.zeros(w.shape, dtype=np.float32) # wとhが0になるように学習(e^wとe^hは1に近づく -> 担当するbboxの倍率1)
+        # Preparation of data used to learn
+        tw = np.zeros(w.shape, dtype=np.float32) # Learn for w and h to become null, for e^w et e^h to become closer from 1 -> 担当するbboxの倍率1)
         th = np.zeros(h.shape, dtype=np.float32)
-        tx = np.tile(0.5, x.shape).astype(np.float32) # 活性化後のxとyが0.5になるように学習()
+        tx = np.tile(0.5, x.shape).astype(np.float32) # Learn for x and y become 0.5 after activation
         ty = np.tile(0.5, y.shape).astype(np.float32)
 
-        if self.seen < self.unstable_seen: # centerの存在しないbbox誤差学習スケールは基本0.1
+        if self.seen < self.unstable_seen: # Center does not exist bbox error learning scale is basically 0.1
             box_learning_scale = np.tile(0.1, x.shape).astype(np.float32)
         else:
             box_learning_scale = np.tile(0, x.shape).astype(np.float32)
 
-        tconf = np.zeros(conf.shape, dtype=np.float32) # confidenceのtruthは基本0、iouがthresh以上のものは学習しない、ただしobjectの存在するgridのbest_boxのみ真のIOUに近づかせる
+        tconf = np.zeros(conf.shape, dtype=np.float32) # The truth of confidence is basic 0, iou do not learn thresh or more, but let only the best_box of the grid, where the object exists can become closer to the true IOU
         conf_learning_scale = np.tile(0.1, conf.shape).astype(np.float32)
 
-        tprob = prob.data.copy() # best_anchor以外は学習させない(自身との二乗和誤差 = 0)
+        tprob = prob.data.copy() # learn only from best_anchor(自身との二乗和誤差 = 0)
         
-        # 全bboxとtruthのiouを計算(batch単位で計算する)
+        # Computation of the iou of bbox and truth
         x_shift = Variable(np.broadcast_to(np.arange(grid_w, dtype=np.float32), x.shape[1:]))
         y_shift = Variable(np.broadcast_to(np.arange(grid_h, dtype=np.float32).reshape(grid_h, 1), y.shape[1:]))
         w_anchor = Variable(np.broadcast_to(np.reshape(np.array(self.anchors, dtype=np.float32)[:, 0], (self.predictor.n_boxes, 1, 1, 1)), w.shape[1:]))
@@ -187,11 +187,11 @@ class YOLOv2Predictor(Chain):
             best_ious.append(np.max(ious, axis=0))
         best_ious = np.array(best_ious)
 
-        # 一定以上のiouを持つanchorに対しては、confを0に下げないようにする(truthの周りのgridはconfをそのまま維持)。
+        # For anchors with more than a certain iou try not to lower conf to 0 (grid around truth keeps conf).
         tconf[best_ious > self.thresh] = conf.data.get()[best_ious > self.thresh]
         conf_learning_scale[best_ious > self.thresh] = 0
 
-        # objectの存在するanchor boxのみ、x、y、w、h、conf、probを個別修正
+        # objectの存在するanchor boxのみ、x、y、w、h、conf、probをindividual correction
         abs_anchors = self.anchors / np.array([grid_w, grid_h])
         for batch in range(batch_size):
             for truth_box in t[batch]:
@@ -205,7 +205,7 @@ class YOLOv2Predictor(Chain):
                         best_iou = iou
                         truth_n = anchor_index
 
-                # objectの存在するanchorについて、centerを0.5ではなく、真の座標に近づかせる。anchorのスケールを1ではなく真のスケールに近づかせる。学習スケールを1にする。
+                # For anchor in which object exists, let center be close to the true coordinate instead of 0.5. Make the scale of anchor approach the true scale instead of one. Set the learning scale to 1.
                 box_learning_scale[batch, truth_n, :, truth_h, truth_w] = 1.0 
                 tx[batch, truth_n, :, truth_h, truth_w] = float(truth_box["x"]) * grid_w - truth_w 
                 ty[batch, truth_n, :, truth_h, truth_w] = float(truth_box["y"]) * grid_h - truth_h
@@ -214,7 +214,7 @@ class YOLOv2Predictor(Chain):
                 tprob[batch, :, truth_n, truth_h, truth_w] = 0
                 tprob[batch, int(truth_box["label"]), truth_n, truth_h, truth_w] = 1
 
-                # IOUの観測
+                # IOUのobservation
                 full_truth_box = Box(float(truth_box["x"]), float(truth_box["y"]), float(truth_box["w"]), float(truth_box["h"]))
                 predicted_box = Box(
                     (x[batch][truth_n][0][truth_h][truth_w].data.get() + truth_w) / grid_w, 
@@ -229,16 +229,16 @@ class YOLOv2Predictor(Chain):
             # debug prints
             maps = F.transpose(prob[batch], (2, 3, 1, 0)).data
             print("best confidences and best conditional probability and predicted class of each grid:")
-            for i in range(grid_h):
-                for j in range(grid_w):
-                    print("%2d" % (int(conf[batch, :, :, i, j].data.max() * 100)), end=" ")
-                print("     ", end="")
-                for j in range(grid_w):
-                    print("%2d" % (maps[i][j][int(maps[i][j].max(axis=1).argmax())].argmax()), end=" ")
-                print("     ", end="")
-                for j in range(grid_w):
-                    print("%2d" % (maps[i][j][int(maps[i][j].max(axis=1).argmax())].max()*100), end=" ")
-                print()
+            #for i in range(grid_h):
+#                for j in range(grid_w):
+#                    print("%2d" % (int(conf[batch, :, :, i, j].data.max() * 100)), end=" ")
+#                print("     ", end="")
+#                for j in range(grid_w):
+#                    print("%2d" % (maps[i][j][int(maps[i][j].max(axis=1).argmax())].argmax()), end=" ")
+#                print("     ", end="")
+#                for j in range(grid_w):
+#                    print("%2d" % (maps[i][j][int(maps[i][j].max(axis=1).argmax())].max()*100), end=" ")
+#                print()
 
             print("best default iou: %.2f   predicted iou: %.2f   confidence: %.2f   class: %s" % (best_iou, predicted_iou, conf[batch][truth_n][0][truth_h][truth_w].data, t[batch][0]["label"]))
             print("-------------------------------")

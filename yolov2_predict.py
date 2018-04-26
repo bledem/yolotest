@@ -6,11 +6,11 @@ import chainer.functions as F
 import argparse
 from yolov2 import *
 
-class AnimalPredictor:
+class drinkPredictor:
     def __init__(self):
         # hyper parameters
-        weight_file = "./backup/yolov2_final_cpu.model"
-        self.n_classes = 10
+        weight_file = "./backup/200.model"
+        self.n_classes = 4
         self.n_boxes = 5
         self.detection_thresh = 0.3
         self.iou_thresh = 0.3
@@ -19,7 +19,7 @@ class AnimalPredictor:
             self.labels = f.read().strip().split("\n")
 
         # load model
-        print("loading animal model...")
+        print("loading drink model...")
         yolov2 = YOLOv2(n_classes=self.n_classes, n_boxes=self.n_boxes)
         model = YOLOv2Predictor(yolov2)
         serializers.load_hdf5(weight_file, model) # load saved model
@@ -33,13 +33,20 @@ class AnimalPredictor:
         img = reshape_to_yolo_size(orig_img)
         input_height, input_width, _ = img.shape
         #img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = img[:,:,:3]
         img = np.asarray(img, dtype=np.float32) / 255.0
         img = img.transpose(2, 0, 1)
-
-        # forward
         x_data = img[np.newaxis, :, :, :]
-        x = Variable(x_data)
-        x, y, w, h, conf, prob = self.model.predict(x)
+        #x = np.asarray(x_data, dtype=np.float32)
+        x_data = Variable(x_data)
+
+        if hasattr(cuda, "cupy"):
+            cuda.get_device(0).use()
+            self.model.to_gpu()
+            x_data.to_gpu()
+        # forward
+
+        x, y, w, h, conf, prob = self.model.predict(x_data)
 
         # parse results
         _, _, _, grid_h, grid_w = x.shape
@@ -50,11 +57,36 @@ class AnimalPredictor:
         conf = F.reshape(conf, (self.n_boxes, grid_h, grid_w)).data
         prob = F.transpose(F.reshape(prob, (self.n_boxes, self.n_classes, grid_h, grid_w)), (1, 0, 2, 3)).data
         detected_indices = (conf * prob).max(axis=0) > self.detection_thresh
+        selected = []
+        break_p = False
+        for i in range(detected_indices.shape[0]):
+
+            for j in range(detected_indices[i].shape[0]):
+
+                for k in range(detected_indices[i][j].shape[0]):
+                    if (detected_indices[i][j][k] == True):
+                        #print('detected indice', i, " ", j, detected_indices[i], detected_indices[i][j] )
+                        selected.append(detected_indices[i])
+                        break_p = True
+                        break
+                if (break_p==True):
+                    break_p=False
+                    break
+        selected = np.asarray(selected, dtype=np.int32)
+        #selected=Variable(selected)
+        #print('detected indice', prob.transpose(1, 2, 3, 0)[detected_indices])
+        #print('detected argmax', prob.transpose(1, 2, 3, 0)[detected_indices][0].argmax())
+        #print('prob transpose', prob.transpose(1, 2, 3, 0).shape)
+        #print('prob in', prob.transpose(1, 2, 3, 0)[0])
+        #print('prob 3', prob.transpose(1, 2, 3, 0)[0][0].argmax())
+
 
         results = []
-        for i in range(detected_indices.sum()):
+        #sum is the number of true, so for every true we do add the results
+        # we use a Boolean mask to extract all the lines corresponding to True in /prob.transpose(1, 2, 3, 0)[detected_indices]/
+        for i in range(int(detected_indices.sum())):
             results.append({
-                "label": self.labels[prob.transpose(1, 2, 3, 0)[detected_indices][i].argmax()],
+                "label": self.labels[int(prob.transpose(1, 2, 3, 0)[detected_indices][i].argmax())],
                 "probs": prob.transpose(1, 2, 3, 0)[detected_indices][i],
                 "conf" : conf[detected_indices][i],
                 "objectness": conf[detected_indices][i] * prob.transpose(1, 2, 3, 0)[detected_indices][i].max(),
@@ -80,7 +112,7 @@ if __name__ == "__main__":
     print("loading image...")
     orig_img = cv2.imread(image_file)
 
-    predictor = AnimalPredictor()
+    predictor = drinkPredictor()
     nms_results = predictor(orig_img)
 
     # draw result
@@ -95,3 +127,5 @@ if __name__ == "__main__":
         text = '%s(%2d%%)' % (result["label"], result["probs"].max()*result["conf"]*100)
         cv2.putText(orig_img, text, (left, top-6), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
         print(text)
+        cv2.imshow("Prediction result", orig_img)
+        cv2.waitKey(0)
