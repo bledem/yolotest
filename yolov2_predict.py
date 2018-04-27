@@ -1,5 +1,6 @@
 import time
 import cv2
+import glob
 import numpy as np
 from chainer import serializers, Variable
 import chainer.functions as F
@@ -9,7 +10,7 @@ from yolov2 import *
 class drinkPredictor:
     def __init__(self):
         # hyper parameters
-        weight_file = "./backup/200.model"
+        weight_file = "./backup/1_1200.model"
         self.n_classes = 4
         self.n_boxes = 5
         self.detection_thresh = 0.3
@@ -103,29 +104,62 @@ class drinkPredictor:
 
 if __name__ == "__main__":
     # argument parse
-    parser = argparse.ArgumentParser(description="指定したパスの画像を読み込み、bbox及びクラスの予測を行う")
-    parser.add_argument('path', help="画像ファイルへのパスを指定")
-    args = parser.parse_args()
-    image_file = args.path
+    parser = argparse.ArgumentParser(description="give path of image or folder")
+    parser.add_argument('-i', '--img', help="give path of image")
+    parser.add_argument('-f', '--fold', help="give path of folder" )
 
-    # read image
-    print("loading image...")
-    orig_img = cv2.imread(image_file)
-
+    args = vars(parser.parse_args())
+    print("args", args)
     predictor = drinkPredictor()
-    nms_results = predictor(orig_img)
 
-    # draw result
-    for result in nms_results:
-        left, top = result["box"].int_left_top()
-        cv2.rectangle(
-            orig_img,
-            result["box"].int_left_top(), result["box"].int_right_bottom(),
-            (255, 0, 255),
-            3
-        )
-        text = '%s(%2d%%)' % (result["label"], result["probs"].max()*result["conf"]*100)
-        cv2.putText(orig_img, text, (left, top-6), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-        print(text)
-        cv2.imshow("Prediction result", orig_img)
-        cv2.waitKey(0)
+    if (args["img"]):
+        image_file = args["img"]
+
+        # read image
+        print("loading image...")
+        print("args", image_file)
+        orig_img = cv2.imread(image_file)
+        nms_results = predictor(orig_img)
+
+        # draw result
+        for result in nms_results:
+            left, top = result["box"].int_left_top()
+            cv2.rectangle(
+                orig_img,
+                result["box"].int_left_top(), result["box"].int_right_bottom(),
+                (255, 0, 255),
+                3
+            )
+            text = '%s(%2d%%)' % (result["label"], result["probs"].max()*result["conf"]*100)
+            cv2.putText(orig_img, text, (left, top-6), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            print(text)
+            cv2.imshow("Prediction result", orig_img)
+            cv2.waitKey(0)
+    elif args["fold"]:
+        img_vec = glob.glob(args["fold"] + "/*")
+        for img in range(len(img_vec)):
+            image_file = img_vec[img]
+            print("img file", image_file)
+
+            # read image
+            print("loading image...")
+            print("args", image_file)
+            orig_img = cv2.imread(image_file)
+            nms_results = predictor(orig_img)
+
+            # draw result
+            for result in nms_results:
+                left, top = result["box"].int_left_top()
+                cv2.rectangle(
+                    orig_img,
+                    result["box"].int_left_top(), result["box"].int_right_bottom(),
+                    (255, 0, 255),
+                    3
+                )
+                text = '%s(%2d%%)' % (result["label"], result["probs"].max()*result["conf"]*100)
+                cv2.putText(orig_img, text, (left, top-6), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                print(text)
+                cv2.imshow("Prediction result", orig_img)
+                cv2.waitKey(0)
+
+

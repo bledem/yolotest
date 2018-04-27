@@ -128,7 +128,7 @@ class YOLOv2(Chain):
 class YOLOv2Predictor(Chain):
     def __init__(self, predictor):
         super(YOLOv2Predictor, self).__init__(predictor=predictor)
-        self.anchors = [[5.375, 5.03125], [5.40625, 4.6875], [2.96875, 2.53125], [2.59375, 2.78125], [1.9375, 3.25]]
+        self.anchors = [[5.375, 5.03125], [5.40625, 4.6875], [2.96875, 2.53125], [2.59375, 2.78125], [1.9375, 3.25]] #5 anchors (widht,height)
         self.thresh = 0.6
         self.seen = 0
         self.unstable_seen = 5000
@@ -168,26 +168,37 @@ class YOLOv2Predictor(Chain):
         h_anchor = Variable(np.broadcast_to(np.reshape(np.array(self.anchors, dtype=np.float32)[:, 1], (self.predictor.n_boxes, 1, 1, 1)), h.shape[1:]))
         x_shift.to_gpu(), y_shift.to_gpu(), w_anchor.to_gpu(), h_anchor.to_gpu()
         best_ious = []
+        #for all images in the batch
         for batch in range(batch_size):
-            n_truth_boxes = len(t[batch])
+            #truth box input
+            n_truth_boxes = len( t[batch])
+            #found boxes
             box_x = (x[batch] + x_shift) / grid_w
             box_y = (y[batch] + y_shift) / grid_h
             box_w = F.exp(w[batch]) * w_anchor / grid_w
             box_h = F.exp(h[batch]) * h_anchor / grid_h
 
             ious = []
+            #print("all found boxes in one image",x[batch].shape, "among", x.shape ) #shape (5, 1, 11, 11)
+
+            #for all truth boxes
             for truth_index in range(n_truth_boxes):
                 truth_box_x = Variable(np.broadcast_to(np.array(t[batch][truth_index]["x"], dtype=np.float32), box_x.shape))
                 truth_box_y = Variable(np.broadcast_to(np.array(t[batch][truth_index]["y"], dtype=np.float32), box_y.shape))
                 truth_box_w = Variable(np.broadcast_to(np.array(t[batch][truth_index]["w"], dtype=np.float32), box_w.shape))
                 truth_box_h = Variable(np.broadcast_to(np.array(t[batch][truth_index]["h"], dtype=np.float32), box_h.shape))
                 truth_box_x.to_gpu(), truth_box_y.to_gpu(), truth_box_w.to_gpu(), truth_box_h.to_gpu()
-                ious.append(multi_box_iou(Box(box_x, box_y, box_w, box_h), Box(truth_box_x, truth_box_y, truth_box_w, truth_box_h)).data.get())  
-            ious = np.array(ious)
-            best_ious.append(np.max(ious, axis=0))
-        best_ious = np.array(best_ious)
+                #Computation of all the ious between
+                ious.append(multi_box_iou(Box(box_x, box_y, box_w, box_h), Box(truth_box_x, truth_box_y, truth_box_w, truth_box_h)).data.get())
 
-        # For anchors with more than a certain iou try not to lower conf to 0 (grid around truth keeps conf).
+            ious = np.array(ious) #shape (1, 5, 1, 13, 13) for 5 boxes for each cells
+            best_ious.append(np.max(ious, axis=0))
+
+        best_ious = np.array(best_ious)
+        print("final for one batch best iou", best_ious.shape) #shape (nbatch, 5, 1, 13, 13)
+
+
+        # For anchors with more than a certain iou try not to lower conf to 0 (grid around truth keeps conf).We fill tconf with the boxes zith sufficient ious
         tconf[best_ious > self.thresh] = conf.data.get()[best_ious > self.thresh]
         conf_learning_scale[best_ious > self.thresh] = 0
 

@@ -51,7 +51,7 @@ def scale_image(image, scale):
     orig_h, orig_w = image.shape[:2]
     return cv2.resize(image, (int(orig_w*scale), int(orig_h*scale)))
 
-# 背景画像から、指定したhとwの大きさの領域をランダムで切り抜く
+# we take off h to the original height and w to the original width, the smaller h and w are the less transformed
 def random_sampling(image, h, w): 
     orig_h, orig_w = image.shape[:2]
     y = np.random.randint(orig_h-h+1)
@@ -213,7 +213,8 @@ class ImageGenerator():
            # if i==2:
 #                cv2.imshow("feed example", sample_image)
 #                cv2.waitKey(500)
-            cv2.imwrite( "data/training/img%03i.png"  %i, sample_image )
+            #print("Saving images in training folder")
+            #cv2.imwrite( "data/trainingYOLO/img%03i.png"  %i, sample_image )
             sample_image = np.asarray(sample_image, dtype=np.float32) / 255.0
             sample_image = sample_image.transpose(2, 0, 1)
             x.append(sample_image)

@@ -16,7 +16,7 @@ from laplotter import LossAccPlotter
 train_sizes = [320, 352, 384, 416, 448]
 item_path = "./items"
 background_path = "./backgrounds"
-initial_weight_file = "./backup/200.model"
+initial_weight_file = "./backup/100.model"
 backup_path = "backup"
 backup_file = "%s/backup.model" % (backup_path)
 batch_size = 8
@@ -36,7 +36,7 @@ n_classes = 4
 n_boxes = 5
 
 start = time.time()
-plotter = LossAccPlotter(title="YOLOv2 loss and accuracy",
+plotter = LossAccPlotter(title="YOLOv2 loss",
                          save_to_filepath="plot.png",
                          show_regressions=True,
                          show_averages=True,
@@ -77,23 +77,32 @@ for batch in range(max_batches):
     # generate sample
     x, t = generator.generate_samples(
         n_samples=batch_size,
-        n_items=2,
+        n_items=1,
         crop_width=input_width,
         crop_height=input_height,
-        min_item_scale=0.05,
+        min_item_scale=0.1,
         max_item_scale=0.6,
-        rand_angle=90,
-        minimum_crop=0.8,
+        rand_angle=45,
+        minimum_crop=1,
         delta_hue=0.01,
         delta_sat_scale=0.5,
         delta_val_scale=0.5
     )
+#    x, t = generator.generate_simple_dataset(n_samples=batch_size, w_in=input_width,
+#        h_in=input_height)
     for i, image in enumerate(x):
+        image = np.asarray(image, dtype=np.float32) * 255.0
         image = np.transpose(image, (1, 2, 0)).copy()
-        #image = np.asarray(image, dtype=np.float32) * 255.0
-        #for i, image in enumerate(x):
+        cv2.imwrite( "data/training_yolo/img0"+str(batch)+".png" , image )
+        image = np.asarray(image, dtype=np.float32) / 255.0
+
+        width, height, _ = image.shape
+        for truth_box in t[i]:
+            box_x, box_y, box_w, box_h = truth_box['x']*width, truth_box['y']*height, truth_box['w']*width, truth_box['h']*height
+            image = cv2.rectangle(image.copy(), (int(box_x-box_w/2), int(box_y-box_h/2)), (int(box_x+box_w/2), int(box_y+box_h/2)), (0, 0, 255), 3)
         cv2.imshow("feed images", image)
         cv2.waitKey(60)
+
 
     x = Variable(x)
     x.to_gpu()
