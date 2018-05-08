@@ -204,12 +204,7 @@ class ImageGenerator():
             t.append(ground_truths)
             sample_image = random_hsv_image(sample_image, delta_hue, delta_sat_scale, delta_val_scale)
 
-            #for ground_truth in ground_truths:
-            #    cv2.rectangle(sample_image, 
-            #        (int((ground_truth["x"]-ground_truth["w"]/2)*crop_width), int((ground_truth["y"]-ground_truth["h"]/2)*crop_height)), 
-            #        (int((ground_truth["x"]+ground_truth["w"]/2)*crop_width), int((ground_truth["y"]+ground_truth["h"]/2)*crop_height)), 
-            #        (0, 0, 255), 3
-            #    )
+
            # if i==2:
 #                cv2.imshow("feed example", sample_image)
 #                cv2.waitKey(500)
@@ -283,4 +278,87 @@ class ImageGenerator():
         # forward
         #x.append(vec2)
         x = np.array(x)
+        return x,t
+
+class ImageNet_data():
+    def __init__(self, img_path, bbox_path, list_path, nb_class):
+        self.img_files = glob.glob(img_path + "/*")
+        self.bbox_files = glob.glob(bbox_path + "/*")
+        self.img_list = []
+        self.img = []
+        self.bbox = []
+        self.nb_class = nb_class
+        with open(list_path) as f:
+            content = f.readlines()
+            #print("content", content)
+            self.img_names = [img_path+"/"+x.strip()+".JPEG" for x in content]
+            self.bbox_names = [bbox_path+"/"+x.strip()+".txt" for x in content]
+        self.img_names.sort()
+        #print(self.img_names, len(self.img_names))
+        self.bbox_names.sort()
+        #print("Verification of bbox and images number", len(self.bbox_files) == len(self.img_names))
+
+        for item_file in self.bbox_names:
+            #print(item_file)
+            file =  [float(x) for x in open(item_file).read().split()]
+            self.bbox.append(file)
+            #print (file, "for", item_file)
+
+    def imageNet_yolo(self, n_samples, w_in, h_in):
+        x = []
+        t = []
+        random = np.random.randint(0, len(self.img_names), n_samples)
+        for j in range(n_samples):
+            ground_truths = []
+            i = random[j]
+            img_path = self.img_names[i]
+            #print(img_path)
+            image = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
+            sample_image = cv2.resize(image, (w_in, h_in))
+            one_hot_label = np.zeros(self.nb_class)
+            one_hot_label[int(self.bbox[i][0])] = 1
+            ground_truths.append({
+                "x": self.bbox[i][1],
+                "y": self.bbox[i][2],
+                "w": self.bbox[i][3],
+                "h": self.bbox[i][4],
+                "label": self.bbox[i][0],
+                "one_hot_label": one_hot_label
+            })
+            box = Box(self.bbox[i][1]*w_in, self.bbox[i][2]*h_in, self.bbox[i][3]*w_in,self.bbox[i][4]*h_in)
+            sample_image = sample_image[:, :, :3]
+            #print("box", box.int_left_top(), box.int_right_bottom(), "for", self.bbox[i][1], self.bbox[i][2], self.bbox[i][3],self.bbox[i][4])
+            print(ground_truths[0]["one_hot_label"])
+            t.append(ground_truths)
+            cv2.rectangle(
+                sample_image,
+                box.int_left_top(), box.int_right_bottom(),
+                (255, 0, 255),
+                3
+            )
+            cv2.imshow(img_path[10:], sample_image)
+            cv2.waitKey(0)
+            #print("bbox", ground_truths)
+            sample_image = np.asarray(sample_image, dtype=np.float32) / 255.0
+            sample_image = sample_image.transpose(2, 0, 1)
+            vec = np.asarray(sample_image).astype(np.float32)
+            x.append(vec)
+
+        img = cv2.imread("./items/pet_water.png")
+        img = cv2.resize(img, (w_in, h_in))
+        #cv2.imshow('test feed', img)
+        #cv2.waitKey(250)
+        print('shape', img.shape[:2])
+        img = img[:,:,:3]
+        img = np.asarray(img, dtype=np.float32) / 255.0
+        img = img.transpose(2, 0, 1)
+        vec2 = np.asarray(img).astype(np.float32)
+
+        # load model
+        #model.predictor.train = False
+
+        # forward
+        #x.append(vec2)
+        x = np.array(x)
+        #print(t)
         return x,t

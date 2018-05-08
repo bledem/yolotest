@@ -19,7 +19,7 @@ background_path = "./backgrounds"
 initial_weight_file = "./backup/100.model"
 backup_path = "backup"
 backup_file = "%s/backup.model" % (backup_path)
-batch_size = 8
+batch_size = 15
 max_batches = 20000
 learning_rate = 1e-5
 learning_schedules = { 
@@ -32,7 +32,7 @@ learning_schedules = {
 lr_decay_power = 4
 momentum = 0.9
 weight_decay = 0.005
-n_classes = 4
+n_classes = 3
 n_boxes = 5
 
 start = time.time()
@@ -46,14 +46,16 @@ plotter = LossAccPlotter(title="YOLOv2 loss",
                          x_label="Batch")
 
 # load image generator
-print("loading image generator...")
-generator = ImageGenerator(item_path, background_path)
+#print("loading image generator...")
+#generator = ImageGenerator(item_path, background_path)
+print("loading ImageNet generator")
+imageNet_data = ImageNet_data("./XmlToTxt/water_bottle_img", "./XmlToTxt/water_bottle_bbox", "./XmlToTxt/images_list.txt", n_classes)
 
 # load model
 print("loading initial model...")
 yolov2 = YOLOv2(n_classes=n_classes, n_boxes=n_boxes)
 model = YOLOv2Predictor(yolov2)
-serializers.load_hdf5(initial_weight_file, model)
+#serializers.load_hdf5(initial_weight_file, model)
 
 model.predictor.train = True
 model.predictor.finetune = False
@@ -73,23 +75,25 @@ for batch in range(max_batches):
     if batch % 80 == 0:
         #we take a random squared size we can found in train size
         input_width = input_height = train_sizes[np.random.randint(len(train_sizes))]
-
     # generate sample
-    x, t = generator.generate_samples(
-        n_samples=batch_size,
-        n_items=1,
-        crop_width=input_width,
-        crop_height=input_height,
-        min_item_scale=0.1,
-        max_item_scale=0.6,
-        rand_angle=45,
-        minimum_crop=1,
-        delta_hue=0.01,
-        delta_sat_scale=0.5,
-        delta_val_scale=0.5
-    )
+#    x, t = generator.generate_samples(
+#        n_samples=batch_size,
+#        n_items=1,
+#        crop_width=input_width,
+#        crop_height=input_height,
+#        min_item_scale=0.1,
+#        max_item_scale=0.6,
+#        rand_angle=45,
+#        minimum_crop=1,
+#        delta_hue=0.01,
+#        delta_sat_scale=0.5,
+#        delta_val_scale=0.5
+#    )
 #    x, t = generator.generate_simple_dataset(n_samples=batch_size, w_in=input_width,
 #        h_in=input_height)
+
+    x, t = imageNet_data.imageNet_yolo(n_samples=batch_size, w_in=input_width, h_in=input_height)
+
     for i, image in enumerate(x):
         image = np.asarray(image, dtype=np.float32) * 255.0
         image = np.transpose(image, (1, 2, 0)).copy()
@@ -97,11 +101,11 @@ for batch in range(max_batches):
         image = np.asarray(image, dtype=np.float32) / 255.0
 
         width, height, _ = image.shape
-        for truth_box in t[i]:
-            box_x, box_y, box_w, box_h = truth_box['x']*width, truth_box['y']*height, truth_box['w']*width, truth_box['h']*height
-            image = cv2.rectangle(image.copy(), (int(box_x-box_w/2), int(box_y-box_h/2)), (int(box_x+box_w/2), int(box_y+box_h/2)), (0, 0, 255), 3)
-        cv2.imshow("feed images", image)
-        cv2.waitKey(60)
+#        for truth_box in t[i]:
+#            box_x, box_y, box_w, box_h = truth_box['x']*width, truth_box['y']*height, truth_box['w']*width, truth_box['h']*height
+#            image = cv2.rectangle(image.copy(), (int(box_x-box_w/2), int(box_y-box_h/2)), (int(box_x+box_w/2), int(box_y+box_h/2)), (0, 0, 255), 3)
+#        cv2.imshow("feed images", image)
+#        cv2.waitKey(200)
 
 
     x = Variable(x)
