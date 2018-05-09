@@ -16,10 +16,10 @@ from laplotter import LossAccPlotter
 train_sizes = [320, 352, 384, 416, 448]
 item_path = "./items"
 background_path = "./backgrounds"
-initial_weight_file = "./backup/100.model"
+initial_weight_file = "./backup/500.model"
 backup_path = "backup"
 backup_file = "%s/backup.model" % (backup_path)
-batch_size = 15
+batch_size =5
 max_batches = 20000
 learning_rate = 1e-5
 learning_schedules = { 
@@ -55,7 +55,7 @@ imageNet_data = ImageNet_data("./XmlToTxt/water_bottle_img", "./XmlToTxt/water_b
 print("loading initial model...")
 yolov2 = YOLOv2(n_classes=n_classes, n_boxes=n_boxes)
 model = YOLOv2Predictor(yolov2)
-#serializers.load_hdf5(initial_weight_file, model)
+serializers.load_hdf5(initial_weight_file, model)
 
 model.predictor.train = True
 model.predictor.finetune = False
@@ -112,6 +112,7 @@ for batch in range(max_batches):
     x.to_gpu()
 
     # forward
+    print("Computing the loss")
     loss = model(x, t)
     now = time.time() - start
     print("batch: %d     input size: %dx%d     learning rate: %f    loss: %f time: %f" % (batch, input_height, input_width, optimizer.lr, loss.data, now))
@@ -123,10 +124,11 @@ for batch in range(max_batches):
     # backward and optimize
     model.cleargrads()
     loss.backward()
+    print("Updating the weights")
     optimizer.update()
 
     # save model
-    if (batch+1) %100 == 0:
+    if (batch+1) %1500 == 0:
         model_file = "%s/%s.model" % (backup_path, batch+1)
         print("saving model to %s" % (model_file))
         serializers.save_hdf5(model_file, model)

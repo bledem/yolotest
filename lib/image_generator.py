@@ -312,7 +312,7 @@ class ImageNet_data():
             ground_truths = []
             i = random[j]
             img_path = self.img_names[i]
-            #print(img_path)
+            print(img_path)
             image = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
             sample_image = cv2.resize(image, (w_in, h_in))
             one_hot_label = np.zeros(self.nb_class)
@@ -326,18 +326,20 @@ class ImageNet_data():
                 "one_hot_label": one_hot_label
             })
             box = Box(self.bbox[i][1]*w_in, self.bbox[i][2]*h_in, self.bbox[i][3]*w_in,self.bbox[i][4]*h_in)
-            sample_image = sample_image[:, :, :3]
+            print(sample_image.shape)
+            #sample_image = sample_image[:, :, :3]
             #print("box", box.int_left_top(), box.int_right_bottom(), "for", self.bbox[i][1], self.bbox[i][2], self.bbox[i][3],self.bbox[i][4])
             print(ground_truths[0]["one_hot_label"])
             t.append(ground_truths)
-            cv2.rectangle(
-                sample_image,
-                box.int_left_top(), box.int_right_bottom(),
-                (255, 0, 255),
-                3
-            )
-            cv2.imshow(img_path[10:], sample_image)
-            cv2.waitKey(0)
+#            cv2.rectangle(
+#                sample_image,
+#                box.int_left_top(), box.int_right_bottom(),
+#                (255, 0, 255),
+#                3
+#            )
+#            cv2.imshow(img_path[10:], sample_image)
+#            cv2.waitKey(70)
+#            cv2.destroyAllWindows()
             #print("bbox", ground_truths)
             sample_image = np.asarray(sample_image, dtype=np.float32) / 255.0
             sample_image = sample_image.transpose(2, 0, 1)
@@ -351,7 +353,7 @@ class ImageNet_data():
         print('shape', img.shape[:2])
         img = img[:,:,:3]
         img = np.asarray(img, dtype=np.float32) / 255.0
-        img = img.transpose(2, 0, 1)
+        img = img.transpose((2, 0, 1))
         vec2 = np.asarray(img).astype(np.float32)
 
         # load model
