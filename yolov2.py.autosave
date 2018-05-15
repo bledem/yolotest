@@ -132,6 +132,7 @@ class YOLOv2Predictor(Chain):
         self.thresh = 0.6 #for IOU
         self.seen = 0
         self.unstable_seen = 5000
+        self.precision =[]
 
     def __call__(self, input_x, t):
         output = self.predictor(input_x)
@@ -196,28 +197,31 @@ class YOLOv2Predictor(Chain):
 
 #for each image the best IOU for every boxes of every cells?
         best_ious = np.array(best_ious)
-       # print("final for one batch best iou", best_ious.shape) #shape (nbatch, 5, 1, 13, 13)
+        print("final for one batch best iou", best_ious) #shape (nbatch, 5, 1, 13, 13)
 
         # We fill tconf with the boxes zith sufficient ious.  For anchors with more than a certain iou try not to lower conf to 0.
         #if IOU is sufficient we take for learning
         tconf[best_ious > self.thresh] = conf.data.get()[best_ious > self.thresh]
-        conf_learning_scale[best_ious > self.thresh] = 0
+        conf_learning_scale[best_ious > self.thresh] = 0 # this is good enough so we give a zero
 
         # Individual correction x、y、w、h、conf、prob of between anchor box associated with a detection and truthground box
         abs_anchors = self.anchors / np.array([grid_w, grid_h])
         for batch in range(batch_size):
+            #for every truth box
             for truth_box in t[batch]:
                 truth_w = int(float(truth_box["x"]) * grid_w)
                 truth_h = int(float(truth_box["y"]) * grid_h)
                 truth_n = 0
                 best_iou = 0.0
+                #looking for the best fitting anchor for this box
                 for anchor_index, abs_anchor in enumerate(abs_anchors):
                     iou = box_iou(Box(0, 0, float(truth_box["w"]), float(truth_box["h"])), Box(0, 0, abs_anchor[0], abs_anchor[1]))
                     if best_iou < iou:
                         best_iou = iou
-                        truth_n = anchor_index
+                        truth_n = anchor_index #and we will work only with this box now
 
-                # For anchor in which object exists, let center be close to the true coordinate instead of 0.5. Make the scale of anchor approach the true scale instead of one. Set the learning scale to 1.
+                # For anchor in which object exists, let center be close to the true coordinate instead of 0.5. 
+                #Make the scale of anchor approach the true scale instead of one. Set the learning scale to 1.
                 box_learning_scale[batch, truth_n, :, truth_h, truth_w] = 1.0 
                 tx[batch, truth_n, :, truth_h, truth_w] = float(truth_box["x"]) * grid_w - truth_w 
                 ty[batch, truth_n, :, truth_h, truth_w] = float(truth_box["y"]) * grid_h - truth_h
@@ -251,7 +255,8 @@ class YOLOv2Predictor(Chain):
 #                for j in range(grid_w):
 #                    print("%2d" % (maps[i][j][int(maps[i][j].max(axis=1).argmax())].max()*100), end=" ")
 #                print()
-
+#best default iou is the best iou between an anchor box and the gtruth
+#predicted_iou is the between the prediction and the truthbox
             print("best default iou: %.2f   predicted iou: %.2f   confidence: %.2f   class: %s" % (best_iou, predicted_iou, conf[batch][truth_n][0][truth_h][truth_w].data, t[batch][0]["label"]))
             print("-------------------------------")
         print("seen = %d" % self.seen)

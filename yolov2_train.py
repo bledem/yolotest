@@ -16,7 +16,7 @@ from laplotter import LossAccPlotter
 train_sizes = [320, 352, 384, 416, 448]
 item_path = "./items"
 background_path = "./backgrounds"
-initial_weight_file = "./backup/500.model"
+initial_weight_file = "./backup/3000_17657.852980s.model"
 backup_path = "backup"
 backup_file = "%s/backup.model" % (backup_path)
 batch_size =5
