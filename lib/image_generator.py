@@ -4,6 +4,7 @@ import glob
 import numpy as np
 from PIL import Image
 from lib.utils import *
+import re
 
 # src_imageの背景画像に対して、overlay_imageのalpha画像を貼り付ける。pos_xとpos_yは貼り付け時の左上の座標
 def overlay(src_image, overlay_image, pos_x, pos_y):
@@ -280,6 +281,17 @@ class ImageGenerator():
         x = np.array(x)
         return x,t
 
+def sorted_nicely( l ):
+    """ Sorts the given iterable in the way that is expected.
+
+    Required arguments:
+    l -- The iterable to be sorted.
+
+    """
+    convert = lambda text: int(text) if text.isdigit() else text
+    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+    return sorted(l, key = alphanum_key)
+
 class ImageNet_data():
     def __init__(self, img_path, bbox_path, list_path, nb_class):
         self.img_files = glob.glob(img_path + "/*")
@@ -288,15 +300,20 @@ class ImageNet_data():
         self.img = []
         self.bbox = []
         self.nb_class = nb_class
+        self.train_set_iterator = 0
         with open(list_path) as f:
             content = f.readlines()
             #print("content", content)
+
             self.img_names = [img_path+"/"+x.strip()+".JPEG" for x in content]
             self.bbox_names = [bbox_path+"/"+x.strip()+".txt" for x in content]
-        self.img_names.sort()
-        #print(self.img_names, len(self.img_names))
-        self.bbox_names.sort()
-        #print("Verification of bbox and images number", len(self.bbox_files) == len(self.img_names))
+
+        self.img_names = sorted_nicely(self.img_names)
+        #print(self.img_names[:20], len(self.img_names))
+        self.bbox_names = sorted_nicely(self.bbox_names)
+        #print(self.bbox_names[:20], len(self.bbox_names))
+
+        print("Verification of bbox and images number", len(self.bbox_files) == len(self.img_names))
 
         for item_file in self.bbox_names:
             #print(item_file)
@@ -307,12 +324,13 @@ class ImageNet_data():
     def imageNet_yolo(self, n_samples, w_in, h_in):
         x = []
         t = []
-        random = np.random.randint(0, len(self.img_names), n_samples)
-        for j in range(n_samples):
+        #random = np.random.randint(0, len(self.img_names), n_samples)
+        for j in range(self.train_set_iterator, self.train_set_iterator+ n_samples):
             ground_truths = []
-            i = random[j]
+            #i = random[j]
+            i=j
             img_path = self.img_names[i]
-            print(img_path)
+            print("for img" , img_path)
             image = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
             sample_image = cv2.resize(image, (w_in, h_in))
             one_hot_label = np.zeros(self.nb_class)
@@ -326,10 +344,10 @@ class ImageNet_data():
                 "one_hot_label": one_hot_label
             })
             box = Box(self.bbox[i][1]*w_in, self.bbox[i][2]*h_in, self.bbox[i][3]*w_in,self.bbox[i][4]*h_in)
-            print(sample_image.shape)
+            #print(sample_image.shape)
             #sample_image = sample_image[:, :, :3]
             #print("box", box.int_left_top(), box.int_right_bottom(), "for", self.bbox[i][1], self.bbox[i][2], self.bbox[i][3],self.bbox[i][4])
-            print(ground_truths[0]["one_hot_label"])
+            print("gtruth hot label", ground_truths[0]["one_hot_label"])
             t.append(ground_truths)
 #            cv2.rectangle(
 #                sample_image,
@@ -345,6 +363,14 @@ class ImageNet_data():
             sample_image = sample_image.transpose(2, 0, 1)
             vec = np.asarray(sample_image).astype(np.float32)
             x.append(vec)
+
+        if (self.train_set_iterator + n_samples <= len(self.img_names)- n_samples):
+            self.train_set_iterator += n_samples
+        elif (len(self.img_names)- (self.train_set_iterator + n_samples))>0 :
+            self.train_set_iterator = len(self.img_names)-n_samples
+        else:
+            self.train_set_iterator = 0
+            print("One epoch done, we compute the mAp")
 
         img = cv2.imread("./items/pet_water.png")
         img = cv2.resize(img, (w_in, h_in))

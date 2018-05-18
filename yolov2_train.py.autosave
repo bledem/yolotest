@@ -125,7 +125,6 @@ for batch in range(max_batches):
     if ((batch+1)%20 == 0):
         print(batch+2,(batch+1)%300)
         mAP = 0
-        map_temp = cMAp_vec.copy
         for i in range(len(cMAp_vec)):
             if cMAp_vec[i][0] != 0:
                 mAP+= cMAp_vec[i][2]/cMAp_vec[i][0]
@@ -165,8 +164,8 @@ serializers.save_hdf5("%s/yolov2_final.model" % (backup_path), model)
 
 mAP = 0
 for i in range(len(cMAp_vec)):
-    map_temp[i][2] = cMAp_vec[i][2]/cMAp_vec[i][0]
-    mAP+= map_temp[i][1]
+    if cMAp_vec[i][0] != 0:
+        mAP+= cMAp_vec[i][2]/cMAp_vec[i][0]
 mAP= mAP/ n_classes
 
 print("mAP is", mAP_vec)

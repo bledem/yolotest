@@ -82,7 +82,7 @@ class Box():
         self.y = (bottom + top) / 2
         return self
 
-# 2本の線の情報を受取り、被ってる線分の長さを返す。あくまで線分
+# we find the distance between two points on either x or y-axis
 def overlap(x1, len1, x2, len2):
     len1_half = len1/2
     len2_half = len2/2

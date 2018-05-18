@@ -13,8 +13,8 @@ class drinkPredictor:
         weight_file = "./backup/3000.model"
         self.n_classes = 3
         self.n_boxes = 5
-        self.detection_thresh = 0.3
-        self.iou_thresh = 0.3
+        self.detection_thresh = 0.6
+        self.iou_thresh = 0.6
         #self.label_file = "./data/label.txt"
         self.label_file = "./XmlToTxt/classes.txt"
         with open(self.label_file, "r") as f:
@@ -58,6 +58,8 @@ class drinkPredictor:
         h = F.reshape(h, (self.n_boxes, grid_h, grid_w)).data
         conf = F.reshape(conf, (self.n_boxes, grid_h, grid_w)).data
         prob = F.transpose(F.reshape(prob, (self.n_boxes, self.n_classes, grid_h, grid_w)), (1, 0, 2, 3)).data
+        print("conf shape", conf.shape, "prob shape", prob.shape)
+
         detected_indices = (conf * prob).max(axis=0) > self.detection_thresh
         selected = []
         break_p = False

@@ -132,19 +132,21 @@ class YOLOv2Predictor(Chain):
         self.thresh = 0.6 #for IOU
         self.seen = 0
         self.unstable_seen = 5000
-        self.precision =[]
+        self.mAP_tresh = 0.5
+        self.c_img_nb = np.zeros(self.predictor.n_classes)
 
-    def __call__(self, input_x, t):
+    def __call__(self, input_x, t, cMAp_vec):
         output = self.predictor(input_x)
         batch_size, _, grid_h, grid_w = output.shape
+        #number of images add for each batches
         self.seen += batch_size
+
         x, y, w, h, conf, prob = F.split_axis(F.reshape(output, (batch_size, self.predictor.n_boxes, self.predictor.n_classes+5, grid_h, grid_w)), (1, 2, 3, 4, 5), axis=2)
-        x = F.sigmoid(x) # xのactivation
-        y = F.sigmoid(y) # yのactivation
+        x = F.sigmoid(x) # activation of x
+        y = F.sigmoid(y) # activation of y
         conf = F.sigmoid(conf) # activation of confidence
         prob = F.transpose(prob, (0, 2, 1, 3, 4))
         prob = F.softmax(prob) # activation of the output probability
-
 
         # Preparation of data used to learn
         tw = np.zeros(w.shape, dtype=np.float32) # Learn for w and h to become null, for e^w et e^h to become closer from 1 -> 担当するbboxの倍率1)
@@ -171,7 +173,8 @@ class YOLOv2Predictor(Chain):
         best_ious = []
         #for each images of the batch
         for batch in range(batch_size):
-            #nb of truth box input
+            self.c_img_nb[int(t[batch][0]["label"])] += 1
+            #nb of truth box in the batch image
             n_truth_boxes = len( t[batch])
             #found boxes coordinates for this image
             box_x = (x[batch] + x_shift) / grid_w
@@ -180,7 +183,8 @@ class YOLOv2Predictor(Chain):
             box_h = F.exp(h[batch]) * h_anchor / grid_h
 
             ious = []
-            #print("all found boxes in one image",x[batch].shape, "among", x.shape ) #shape (5, 1, 11, 11)
+            #print("all found boxes in one image",x[batch][0][:,0,0], "among", x.shape ) #shape (5, 1, 13, 13) for x[batch].shape in  x.shape (nbbatch, 5, 1, 13, 13)
+
 
             #for each truth boxes existing in this "batch image"
             for truth_index in range(n_truth_boxes):
@@ -189,16 +193,17 @@ class YOLOv2Predictor(Chain):
                 truth_box_w = Variable(np.broadcast_to(np.array(t[batch][truth_index]["w"], dtype=np.float32), box_w.shape))
                 truth_box_h = Variable(np.broadcast_to(np.array(t[batch][truth_index]["h"], dtype=np.float32), box_h.shape))
                 truth_box_x.to_gpu(), truth_box_y.to_gpu(), truth_box_w.to_gpu(), truth_box_h.to_gpu()
-                #Computation of all the ious between truth and the found box in this image
+
+                #Computation of all the ious between 1 truth bbox and all found boxes in this image
                 ious.append(multi_box_iou(Box(box_x, box_y, box_w, box_h), Box(truth_box_x, truth_box_y, truth_box_w, truth_box_h)).data.get())
 
-            ious = np.array(ious) #shape (1, 5, 1, 13, 13) for 5 boxes for each cells
-            best_ious.append(np.max(ious, axis=0))
+            ious = np.array(ious) #shape (5, 5, 1, 12, 12) for 5 boxes for each cells (11, 12 or 13),  (nbbatch, nb_box, the iou value, grid)
+            best_ious.append(np.max(ious, axis=0)) #for the feedback
 
 #for each image the best IOU for every boxes of every cells?
         best_ious = np.array(best_ious)
-        print("final for one batch best iou", best_ious) #shape (nbatch, 5, 1, 13, 13)
-
+        #print("final for one batch best iou", best_ious.shape, "out of", ious.shape) #shape (1, 5, 1, 12, 12) the best iou has been chosen out of
+        #print("what is batch", t[batch][0], "out of", t[batch])
         # We fill tconf with the boxes zith sufficient ious.  For anchors with more than a certain iou try not to lower conf to 0.
         #if IOU is sufficient we take for learning
         tconf[best_ious > self.thresh] = conf.data.get()[best_ious > self.thresh]
@@ -207,6 +212,8 @@ class YOLOv2Predictor(Chain):
         # Individual correction x、y、w、h、conf、prob of between anchor box associated with a detection and truthground box
         abs_anchors = self.anchors / np.array([grid_w, grid_h])
         for batch in range(batch_size):
+            #increase the number of images for this category
+            cMAp_vec[int(t[batch][0]["label"])][0]+=1
             #for every truth box
             for truth_box in t[batch]:
                 truth_w = int(float(truth_box["x"]) * grid_w)
@@ -238,10 +245,54 @@ class YOLOv2Predictor(Chain):
                     np.exp(w[batch][truth_n][0][truth_h][truth_w].data.get()) * abs_anchors[truth_n][0],
                     np.exp(h[batch][truth_n][0][truth_h][truth_w].data.get()) * abs_anchors[truth_n][1]
                 )
-                predicted_iou = box_iou(full_truth_box, predicted_box)
+                predicted_iou = box_iou(full_truth_box, predicted_box) #between the truth box and the anchor applied to the prediction
+
                 tconf[batch, truth_n, :, truth_h, truth_w] = predicted_iou
                 conf_learning_scale[batch, truth_n, :, truth_h, truth_w] = 10.0
 
+            conf2 = F.reshape(conf[batch], (self.predictor.n_boxes, grid_h, grid_w)).data
+            #print("conf shape", conf2.shape, "prob shape", prob[batch].shape)
+
+            detected_indices = (conf2 * prob[batch].data).max(axis=0) >  self.thresh
+
+ ##### Count the boxes robust enough
+            selected = []
+            break_p = False
+            nb_good_box = 0
+            for i in range(detected_indices.shape[0]):
+
+                for j in range(detected_indices[i].shape[0]):
+#if one of the array is true cad above the thresh , with the grid (j,k) coordinate ?
+                    for k in range(detected_indices[i][j].shape[0]):
+                        if (detected_indices[i][j][k] == True):
+                            #print('detected indice', i, " ", j, detected_indices[i], detected_indices[i][j] )
+
+                            selected.append(detected_indices[i]) #selected has as many array as
+                            break_p = True
+                            break
+                    if (break_p==True):
+                        break_p=False
+                        break
+            selected = np.asarray(selected, dtype=np.int32)
+
+            for i in range(int(detected_indices.sum())):
+                #print("prob", prob[batch].transpose(1, 2, 3, 0)[detected_indices])
+
+  ##### Check if same label
+                label_detected= int(prob[batch].data.transpose(1, 2, 3, 0)[detected_indices][i].argmax())
+                #print("label detected", label_detected)
+                #add one to the detected box
+                cMAp_vec[int(t[batch][0]["label"])][1]+=1
+                if predicted_iou> self.mAP_tresh and (int(label_detected) == int(t[batch][0]["label"]))  :
+                    nb_good_box+=1
+
+  #### Computing precision
+            if nb_good_box != 0:
+                cMAp_vec[int(t[batch][0]["label"])][2]+=min(nb_good_box,len(t[batch]))/nb_good_box
+                print(abs(nb_good_box - len(t[batch])), " False Positive(s)")
+                print("for img", batch, " cMAp_vec", cMAp_vec  )#,cMAp_vec[int(t[batch][0]["label"])])
+            if len(t[batch]) > 1:
+                print("#############case of", len(t[batch]), "groudtruth boxes")
             # debug prints
             maps = F.transpose(prob[batch], (2, 3, 1, 0)).data
             print("best confidences and best conditional probability and predicted class of each grid:")
@@ -255,9 +306,9 @@ class YOLOv2Predictor(Chain):
 #                for j in range(grid_w):
 #                    print("%2d" % (maps[i][j][int(maps[i][j].max(axis=1).argmax())].max()*100), end=" ")
 #                print()
-#best default iou is the best iou between an anchor box and the gtruth
+#best default iou is the best iou between an anchor box and the gtruth in term of lenght and width only (if both put on the same corner)
 #predicted_iou is the between the prediction and the truthbox
-            print("best default iou: %.2f   predicted iou: %.2f   confidence: %.2f   class: %s" % (best_iou, predicted_iou, conf[batch][truth_n][0][truth_h][truth_w].data, t[batch][0]["label"]))
+            print("best default iou: %.2f   predicted iou: %.2f   confidence: %.2f   class: %s" % (best_iou, predicted_iou, conf[batch][truth_n][0][truth_h][truth_w].data, int(t[batch][0]["label"])))
             print("-------------------------------")
         print("seen = %d" % self.seen)
 
@@ -276,8 +327,8 @@ class YOLOv2Predictor(Chain):
         p_loss = F.sum((tprob - prob) ** 2) / 2
         print("x_loss: %f  y_loss: %f  w_loss: %f  h_loss: %f  c_loss: %f   p_loss: %f" % 
             (F.sum(x_loss).data, F.sum(y_loss).data, F.sum(w_loss).data, F.sum(h_loss).data, F.sum(c_loss).data, F.sum(p_loss).data)
-        )
-
+            )
+        print(" nb of img", self.c_img_nb)
         loss = x_loss + y_loss + w_loss + h_loss + c_loss + p_loss
         return loss
 
