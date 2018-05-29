@@ -16,7 +16,7 @@ from laplotter import LossAccPlotter
 train_sizes = [320, 352, 384, 416, 448]
 item_path = "./items"
 background_path = "./backgrounds"
-initial_weight_file = "./backup/3000_17657.852980s.model"
+initial_weight_file = "./backup/3000.model"
 backup_path = "backup"
 backup_file = "%s/backup.model" % (backup_path)
 batch_size =6
@@ -34,9 +34,6 @@ momentum = 0.9
 weight_decay = 0.005
 n_classes = 3
 n_boxes = 5
-cMAp_vec = []
-for i in range(n_classes):
-    cMAp_vec.append([0,0,0]) #nb of images, nb of detected box, precision
 
 start = time.time()
 plotter = LossAccPlotter(title="YOLOv2 loss",
@@ -48,14 +45,6 @@ plotter = LossAccPlotter(title="YOLOv2 loss",
                          show_plot_window=True,
                          x_label="Batch")
 
-plotter_map = LossAccPlotter(title="YOLOv2 map",
-                         save_to_filepath="map.png",
-                         show_regressions=True,
-                         show_averages=True,
-                         show_acc_plot=True,
-                         show_loss_plot=False,
-                         show_plot_window=True,
-                         x_label="Batch")
 # load image generator
 #print("loading image generator...")
 #generator = ImageGenerator(item_path, background_path)
@@ -122,21 +111,10 @@ for batch in range(max_batches):
     x = Variable(x)
     x.to_gpu()
 
-    if ((batch+1)%20 == 0):
-        print(batch+2,(batch+1)%300)
-        mAP = 0
-        map_temp = cMAp_vec.copy
-        for i in range(len(cMAp_vec)):
-            if cMAp_vec[i][0] != 0:
-                mAP+= cMAp_vec[i][2]/cMAp_vec[i][0]
-        mAP= mAP/ n_classes
-        plotter_map.add_values(batch,acc_train=mAP)
-
-        print("Until now the mAP is", mAP)
 
     # forward
     print("Computing the loss")
-    loss = model(x, t, cMAp_vec)
+    loss = model(x, t)
     now = time.time() - start
     print("batch: %d     input size: %dx%d     learning rate: %f    loss: %f time: %f" % (batch, input_height, input_width, optimizer.lr, loss.data, now))
     print("/////////////////////////////////////")
@@ -150,9 +128,6 @@ for batch in range(max_batches):
     print("Updating the weights")
     optimizer.update()
 
-    # save model
-
-
 
     if (batch+1) %1500 == 0:
         model_file = "%s/%s.model" % (backup_path, batch+1)
@@ -160,16 +135,11 @@ for batch in range(max_batches):
         serializers.save_hdf5(model_file, model)
         serializers.save_hdf5(backup_file, model)
 
+
+
 print("saving model to %s/yolov2_final.model" % (backup_path))
 serializers.save_hdf5("%s/yolov2_final.model" % (backup_path), model)
 
-mAP = 0
-for i in range(len(cMAp_vec)):
-    map_temp[i][2] = cMAp_vec[i][2]/cMAp_vec[i][0]
-    mAP+= map_temp[i][1]
-mAP= mAP/ n_classes
-
-print("mAP is", mAP_vec)
 
 model.to_cpu()
 serializers.save_hdf5("%s/yolov2_final_cpu.model" % (backup_path), model)

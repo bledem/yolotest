@@ -135,7 +135,7 @@ class YOLOv2Predictor(Chain):
         self.mAP_tresh = 0.5
         self.c_img_nb = np.zeros(self.predictor.n_classes)
 
-    def __call__(self, input_x, t, cMAp_vec):
+    def __call__(self, input_x, t):
         output = self.predictor(input_x)
         batch_size, _, grid_h, grid_w = output.shape
         #number of images add for each batches
@@ -173,6 +173,8 @@ class YOLOv2Predictor(Chain):
         best_ious = []
         #for each images of the batch
         for batch in range(batch_size):
+
+
             self.c_img_nb[int(t[batch][0]["label"])] += 1
             #nb of truth box in the batch image
             n_truth_boxes = len( t[batch])
@@ -183,6 +185,7 @@ class YOLOv2Predictor(Chain):
             box_h = F.exp(h[batch]) * h_anchor / grid_h
 
             ious = []
+            ground_box_list = []
             #print("all found boxes in one image",x[batch][0][:,0,0], "among", x.shape ) #shape (5, 1, 13, 13) for x[batch].shape in  x.shape (nbbatch, 5, 1, 13, 13)
 
 
@@ -209,18 +212,23 @@ class YOLOv2Predictor(Chain):
         tconf[best_ious > self.thresh] = conf.data.get()[best_ious > self.thresh]
         conf_learning_scale[best_ious > self.thresh] = 0 # this is good enough so we give a zero
 
+
+
         # Individual correction x、y、w、h、conf、prob of between anchor box associated with a detection and truthground box
         abs_anchors = self.anchors / np.array([grid_w, grid_h])
         for batch in range(batch_size):
             #increase the number of images for this category
-            cMAp_vec[int(t[batch][0]["label"])][0]+=1
             #for every truth box
+            #print("prob", prob[batch].transpose(1, 2, 3, 0)[detected_indices])
+
+
             for truth_box in t[batch]:
                 truth_w = int(float(truth_box["x"]) * grid_w)
                 truth_h = int(float(truth_box["y"]) * grid_h)
                 truth_n = 0
                 best_iou = 0.0
-                #looking for the best fitting anchor for this box in term of lenght and width
+
+                #looking for the best fitting anchor for this truth box in term of lenght and width
                 for anchor_index, abs_anchor in enumerate(abs_anchors):
                     iou = box_iou(Box(0, 0, float(truth_box["w"]), float(truth_box["h"])), Box(0, 0, abs_anchor[0], abs_anchor[1]))
                     if best_iou < iou:
@@ -237,7 +245,7 @@ class YOLOv2Predictor(Chain):
                 tprob[batch, :, truth_n, truth_h, truth_w] = 0
                 tprob[batch, int(truth_box["label"]), truth_n, truth_h, truth_w] = 1
 
-                # observation of IOU
+                # observation of IOU for every predicted box circled by anchor and the associated every truth box
                 full_truth_box = Box(float(truth_box["x"]), float(truth_box["y"]), float(truth_box["w"]), float(truth_box["h"]))
                 predicted_box = Box(
                     (x[batch][truth_n][0][truth_h][truth_w].data.get() + truth_w) / grid_w, 
@@ -245,56 +253,13 @@ class YOLOv2Predictor(Chain):
                     np.exp(w[batch][truth_n][0][truth_h][truth_w].data.get()) * abs_anchors[truth_n][0],
                     np.exp(h[batch][truth_n][0][truth_h][truth_w].data.get()) * abs_anchors[truth_n][1]
                 )
-                predicted_iou = box_iou(full_truth_box, predicted_box) #between the truth box and the anchor applied to the prediction
 
+
+                predicted_iou = box_iou(full_truth_box, predicted_box) #between the truth box and the anchor applied to the predicted box
                 tconf[batch, truth_n, :, truth_h, truth_w] = predicted_iou
                 conf_learning_scale[batch, truth_n, :, truth_h, truth_w] = 10.0
 
-            conf2 = F.reshape(conf[batch], (self.predictor.n_boxes, grid_h, grid_w)).data
-            #print("conf shape", conf2.shape, "prob shape", prob[batch].shape)
 
-            detected_indices = (conf2 * prob[batch].data).max(axis=0) >  self.thresh
-
- ##### Count the boxes robust enough
-            selected = []
-            break_p = False
-            nb_good_box = 0
-            for i in range(detected_indices.shape[0]):
-
-                for j in range(detected_indices[i].shape[0]):
-#if one of the array is true cad above the thresh , with the grid (j,k) coordinate ?
-                    for k in range(detected_indices[i][j].shape[0]):
-                        if (detected_indices[i][j][k] == True):
-                            #print('detected indice', i, " ", j, detected_indices[i], detected_indices[i][j] )
-
-                            selected.append(detected_indices[i]) #selected has as many array as
-                            break_p = True
-                            break
-                    if (break_p==True):
-                        break_p=False
-                        break
-            selected = np.asarray(selected, dtype=np.int32)
-
-            for i in range(int(detected_indices.sum())):
-                #print("prob", prob[batch].transpose(1, 2, 3, 0)[detected_indices])
-
-  ##### Check if same label
-                label_detected= int(prob[batch].data.transpose(1, 2, 3, 0)[detected_indices][i].argmax())
-                #print("label detected", label_detected)
-                #add one to the detected box
-                cMAp_vec[int(t[batch][0]["label"])][1]+=1
-                if predicted_iou> self.mAP_tresh and (int(label_detected) == int(t[batch][0]["label"]))  :
-                    nb_good_box+=1
-
-  #### Computing precision
-            if nb_good_box != 0:
-                cMAp_vec[int(t[batch][0]["label"])][2]+=min(nb_good_box,len(t[batch]))/nb_good_box
-                print(abs(nb_good_box - len(t[batch])), " False Positive(s)")
-                print("for img", batch, " cMAp_vec", cMAp_vec  )#,cMAp_vec[int(t[batch][0]["label"])])
-            if len(t[batch]) > 1:
-                print("#############case of", len(t[batch]), "groudtruth boxes")
-            # debug prints
-            maps = F.transpose(prob[batch], (2, 3, 1, 0)).data
             print("best confidences and best conditional probability and predicted class of each grid:")
             #for i in range(grid_h):
 #                for j in range(grid_w):

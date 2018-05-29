@@ -4,10 +4,15 @@ from chainer import serializers, Variable, cuda
 import chainer.functions as F
 from yolov2_predict import drinkPredictor
 from yolov2 import *
+from chainer_sort.models import SORTMultiObjectTracking
+import sys
 
 
 cap = cv2.VideoCapture(1)
 nakbot_predictor = drinkPredictor()
+model = SORTMultiObjectTracking(
+    detector, voc_bbox_label_names,
+    sort_label_names)
 
 while(True):
     ret, orig_img = cap.read()

@@ -292,6 +292,8 @@ def sorted_nicely( l ):
     alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
     return sorted(l, key = alphanum_key)
 
+
+
 class ImageNet_data():
     def __init__(self, img_path, bbox_path, list_path, nb_class):
         self.img_files = glob.glob(img_path + "/*")

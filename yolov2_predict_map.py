@@ -1,11 +1,14 @@
 import time
 import cv2
 import glob
+import os
+import sys
 import numpy as np
 from chainer import serializers, Variable
 import chainer.functions as F
 import argparse
 from yolov2 import *
+
 
 class drinkPredictor:
     def __init__(self):
@@ -89,18 +92,17 @@ class drinkPredictor:
         #sum is the number of true, so for every true we do add the results
         # we use a Boolean mask to extract all the lines corresponding to True in /prob.transpose(1, 2, 3, 0)[detected_indices]/
         for i in range(int(detected_indices.sum())):
-            print('detected indice sum', detected_indices[i], " for this i",  x[detected_indices][i], "which gives")
-
             results.append({
+                "label_nb":int(prob.transpose(1, 2, 3, 0)[detected_indices][i].argmax()),
                 "label": self.labels[int(prob.transpose(1, 2, 3, 0)[detected_indices][i].argmax())],
                 "probs": prob.transpose(1, 2, 3, 0)[detected_indices][i],
                 "conf" : conf[detected_indices][i],
                 "objectness": conf[detected_indices][i] * prob.transpose(1, 2, 3, 0)[detected_indices][i].max(),
                 "box"  : Box(
-                            x[detected_indices][i]*orig_input_width,
-                            y[detected_indices][i]*orig_input_height,
-                            w[detected_indices][i]*orig_input_width,
-                            h[detected_indices][i]*orig_input_height).crop_region(orig_input_height, orig_input_width)
+                            x[detected_indices][i],
+                            y[detected_indices][i],
+                            w[detected_indices][i],
+                            h[detected_indices][i])
             })
 
         # nms
@@ -108,63 +110,40 @@ class drinkPredictor:
         return nms_results
 
 if __name__ == "__main__":
-    # argument parse
-    parser = argparse.ArgumentParser(description="give path of image or folder")
-    parser.add_argument('-i', '--img', help="give path of image")
-    parser.add_argument('-f', '--fold', help="give path of folder" )
+    parser = argparse.ArgumentParser(description="give folder for mAP")
+    parser.add_argument('-list', '--list', help="give path of img list" )
+    parser.add_argument('-img', '--img', help="give path of img folder" )
+
 
     args = vars(parser.parse_args())
-    print("args", args)
+    # argument parse
+    print("loading ImageNet generator")
     predictor = drinkPredictor()
 
-    if (args["img"]):
-        image_file = args["img"]
+    with open(args["list"]) as f:
+        content = f.readlines()
+        print("content", content)
+    img_names = [args["img"]+"/"+x.strip()+".JPEG" for x in content]
+
+
+    for img in range(len(content)):
+        image_name = content[img].split("\n",1)[0]
+        print("content", image_name)
+
+
+        file = open("XmlToTxt/predictions/"+image_name+".txt", "+w")
+
+        image_file = img_names[img]
+        print("img file", image_file)
 
         # read image
-        print("loading image...")
-        print("args", image_file)
+        #print("loading image...")
+        #print("args", image_file)
         orig_img = cv2.imread(image_file)
         nms_results = predictor(orig_img)
-
-        # draw result
-        for result in nms_results:
-            left, top = result["box"].int_left_top()
-            cv2.rectangle(
-                orig_img,
-                result["box"].int_left_top(), result["box"].int_right_bottom(),
-                (255, 0, 255),
-                3
-            )
-            text = '%s(%2d%%)' % (result["label"], result["probs"].max()*result["conf"]*100)
-            cv2.putText(orig_img, text, (left, top-6), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-            print(text)
-            cv2.imshow("Prediction result", orig_img)
-            cv2.waitKey(0)
-    elif args["fold"]:
-        img_vec = glob.glob(args["fold"] + "/*")
-        for img in range(len(img_vec)):
-            image_file = img_vec[img]
-            print("img file", image_file)
-
-            # read image
-            print("loading image...")
-            print("args", image_file)
-            orig_img = cv2.imread(image_file)
-            nms_results = predictor(orig_img)
-
-            # draw result
-            for result in nms_results:
-                left, top = result["box"].int_left_top()
-                cv2.rectangle(
-                    orig_img,
-                    result["box"].int_left_top(), result["box"].int_right_bottom(),
-                    (255, 0, 255),
-                    3
-                )
-                text = '%s(%2d%%)' % (result["label"], result["probs"].max()*result["conf"]*100)
-                cv2.putText(orig_img, text, (left, top-6), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-                print(text)
-                cv2.imshow("Prediction result", orig_img)
-                cv2.waitKey(0)
+        for result in nms_results :
+            print('%s %.3f %.3f %.3f %.3f %.3f \n' % (result["label_nb"],result["probs"].max()*result["conf"],result["box"].x, result["box"].y,result["box"].w,result["box"].h))
+            file.write('%s %.3f %.3f %.3f %.3f %.3f \n' % (result["label_nb"],result["probs"].max()*result["conf"],result["box"].x, result["box"].y,result["box"].w,result["box"].h))
+        file.close()
 
 
