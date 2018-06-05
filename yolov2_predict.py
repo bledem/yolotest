@@ -10,13 +10,13 @@ from yolov2 import *
 class drinkPredictor:
     def __init__(self):
         # hyper parameters
-        weight_file = "./backup/4500.model"
+        weight_file = "/home/ubuntu/sdcard/YOLOv2-master/backup/10500.model"
         self.n_classes = 3
         self.n_boxes = 5
         self.detection_thresh = 0.6
         self.iou_thresh = 0.6
-        #self.label_file = "./data/label.txt"
-        self.label_file = "./XmlToTxt/classes.txt"
+        #self.label_file = "/home/ubuntu/sdcard/YOLOv2-master/data/label.txt"
+        self.label_file = "/home/ubuntu/sdcard/YOLOv2-master/XmlToTxt/classes.txt"
         with open(self.label_file, "r") as f:
             self.labels = f.read().strip().split("\n")
 
@@ -58,7 +58,7 @@ class drinkPredictor:
         h = F.reshape(h, (self.n_boxes, grid_h, grid_w)).data
         conf = F.reshape(conf, (self.n_boxes, grid_h, grid_w)).data
         prob = F.transpose(F.reshape(prob, (self.n_boxes, self.n_classes, grid_h, grid_w)), (1, 0, 2, 3)).data
-        print("conf shape", conf.shape, "prob shape", prob.shape)
+        #print("conf shape", conf.shape, "prob shape", prob.shape)
 
         detected_indices = (conf * prob).max(axis=0) > self.detection_thresh
         selected = []
@@ -89,7 +89,7 @@ class drinkPredictor:
         #sum is the number of true, so for every true we do add the results
         # we use a Boolean mask to extract all the lines corresponding to True in /prob.transpose(1, 2, 3, 0)[detected_indices]/
         for i in range(int(detected_indices.sum())):
-            print('detected indice sum', detected_indices[i], " for this i",  x[detected_indices][i], "which gives")
+            #print('detected indice sum', detected_indices[i], " for this i",  x[detected_indices][i], "which gives")
 
             results.append({
                 "label": self.labels[int(prob.transpose(1, 2, 3, 0)[detected_indices][i].argmax())],
@@ -100,7 +100,8 @@ class drinkPredictor:
                             x[detected_indices][i]*orig_input_width,
                             y[detected_indices][i]*orig_input_height,
                             w[detected_indices][i]*orig_input_width,
-                            h[detected_indices][i]*orig_input_height).crop_region(orig_input_height, orig_input_width)
+                            h[detected_indices][i]*orig_input_height).crop_region(orig_input_height, orig_input_width),
+                "label_id" : int(prob.transpose(1, 2, 3, 0)[detected_indices][i].argmax())
             })
 
         # nms

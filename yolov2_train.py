@@ -120,8 +120,9 @@ for batch in range(max_batches):
     print("/////////////////////////////////////")
     now = time.time() - start
     #print("[batch %d (%d images)] learning rate: %f, loss: %f, accuracy: %f, time: %f" % (batch+1, (batch+1) * batch_size, optimizer.lr, loss.data, accuracy.data, now))
-
-    plotter.add_values(batch,loss_train=loss.data)
+    #to avoid the first loss very high errors (due to??)
+    if batch > 500 :
+        plotter.add_values(batch,loss_train=loss.data)
     # backward and optimize
     model.cleargrads()
     loss.backward()

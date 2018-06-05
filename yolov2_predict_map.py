@@ -13,7 +13,7 @@ from yolov2 import *
 class drinkPredictor:
     def __init__(self):
         # hyper parameters
-        weight_file = "./backup/4500.model"
+        weight_file = "./backup/10500.model"
         self.n_classes = 3
         self.n_boxes = 5
         self.detection_thresh = 0.6
