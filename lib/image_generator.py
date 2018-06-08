@@ -332,7 +332,7 @@ class ImageNet_data():
             #i = random[j]
             i=j
             img_path = self.img_names[i]
-            print("for img" , img_path)
+            #print("for img" , img_path)
             image = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
             sample_image = cv2.resize(image, (w_in, h_in))
             one_hot_label = np.zeros(self.nb_class)
@@ -349,7 +349,8 @@ class ImageNet_data():
             #print(sample_image.shape)
             #sample_image = sample_image[:, :, :3]
             #print("box", box.int_left_top(), box.int_right_bottom(), "for", self.bbox[i][1], self.bbox[i][2], self.bbox[i][3],self.bbox[i][4])
-            print("gtruth hot label", ground_truths[0]["one_hot_label"])
+            if j%10==0:
+                print("gtruth hot label", ground_truths[0]["one_hot_label"])
             t.append(ground_truths)
 #            cv2.rectangle(
 #                sample_image,
@@ -374,15 +375,7 @@ class ImageNet_data():
             self.train_set_iterator = 0
             print("One epoch done, we compute the mAp")
 
-        img = cv2.imread("./items/pet_water.png")
-        img = cv2.resize(img, (w_in, h_in))
-        #cv2.imshow('test feed', img)
-        #cv2.waitKey(250)
-        print('shape', img.shape[:2])
-        img = img[:,:,:3]
-        img = np.asarray(img, dtype=np.float32) / 255.0
-        img = img.transpose((2, 0, 1))
-        vec2 = np.asarray(img).astype(np.float32)
+
 
         # load model
         #model.predictor.train = False

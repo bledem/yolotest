@@ -9,8 +9,8 @@ from yolov2 import *
 class CocoPredictor:
     def __init__(self):
         # hyper parameters
-        weight_file = "./yolov2_darknet.model"
-        self.n_classes = 80
+        weight_file = "./yolov2_darknet19_npz.model"
+        self.n_classes = 3
         self.n_boxes = 5
         self.detection_thresh = 0.5
         self.iou_thresh = 0.5
@@ -18,9 +18,9 @@ class CocoPredictor:
         anchors = [[0.738768, 0.874946], [2.42204, 2.65704], [4.30971, 7.04493], [10.246, 4.59428], [12.6868, 11.8741]]
 
         # load model
-        print("loading coco model...")
+        print("loading model...")
         yolov2 = YOLOv2(n_classes=self.n_classes, n_boxes=self.n_boxes)
-        serializers.load_hdf5(weight_file, yolov2) # load saved model
+        serializers.load_npz(weight_file, yolov2, strict=False) # load saved model
         model = YOLOv2Predictor(yolov2)
         model.init_anchor(anchors)
         model.predictor.train = False
@@ -31,6 +31,7 @@ class CocoPredictor:
 
     def __call__(self, orig_img):
         orig_input_height, orig_input_width, _ = orig_img.shape
+
         #img = cv2.resize(orig_img, (640, 640))
         img = reshape_to_yolo_size(orig_img)
         input_height, input_width, _ = img.shape
@@ -89,7 +90,6 @@ if __name__ == "__main__":
     orig_img = cv2.imread(image_file)
 
     predictor = CocoPredictor()
-    orig_img = cuda.to_gpu(origin_imd, device=0)
     nms_results = predictor(orig_img)
 
     # draw result

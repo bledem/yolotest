@@ -6,10 +6,10 @@ import chainer.functions as F
 import argparse
 from darknet19 import *
 from yolov2 import *
-from yolov2_grid_prob import *
-from yolov2_bbox import *
+#from yolov2_grid_prob import *
+#from yolov2_bbox import *
 
-n_classes = 10
+n_classes = 83
 n_boxes = 5
 partial_layer = 18
 
@@ -38,11 +38,11 @@ def copy_bn_layer(src, dst, layers):
 
 # load model
 print("loading original model...")
-input_weight_file = "./backup/darknet19_448_final.model"
-output_weight_file = "./backup/partial.model"
+input_weight_file = "./darknet19_npz.model"
+output_weight_file = "./backup/partial_npz.model"
 
 model = Darknet19Predictor(Darknet19())
-serializers.load_hdf5(input_weight_file, model) # load saved model
+serializers.load_npz(input_weight_file, model) # load saved model
 
 yolov2 = YOLOv2(n_classes=n_classes, n_boxes=n_boxes)
 copy_conv_layer(model.predictor, yolov2, range(1, partial_layer+1))
@@ -51,4 +51,4 @@ copy_bn_layer(model.predictor, yolov2, range(1, partial_layer+1))
 model = YOLOv2Predictor(yolov2)
 
 print("saving model to %s" % (output_weight_file))
-serializers.save_hdf5("%s" % (output_weight_file), model)
+serializers.save_npz("%s" % (output_weight_file), model)

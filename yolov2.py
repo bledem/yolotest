@@ -117,13 +117,13 @@ class YOLOv2(Chain):
         h = F.leaky_relu(self.bias18(self.bn18(self.conv18(h), finetune=self.finetune)), slope=0.1)
 
         ###### new layer
-        h = F.leaky_relu(self.bias19(self.bn19(self.conv19(h), finetune=self.finetune)), slope=0.1)
-        h = F.leaky_relu(self.bias20(self.bn20(self.conv20(h), finetune=self.finetune)), slope=0.1)
+        h1 = F.leaky_relu(self.bias19(self.bn19(self.conv19(h), finetune=self.finetune)), slope=0.1)
+        h = F.leaky_relu(self.bias20(self.bn20(self.conv20(h1), finetune=self.finetune)), slope=0.1)
         h = F.concat((high_resolution_feature, h), axis=1) # output concatnation
         h = F.leaky_relu(self.bias21(self.bn21(self.conv21(h), finetune=self.finetune)), slope=0.1)
         h = self.bias22(self.conv22(h))
+        return h, h1
 
-        return h
 
 class YOLOv2Predictor(Chain):
     def __init__(self, predictor):
@@ -136,7 +136,7 @@ class YOLOv2Predictor(Chain):
         self.c_img_nb = np.zeros(self.predictor.n_classes)
 
     def __call__(self, input_x, t):
-        output = self.predictor(input_x)
+        output, h1= self.predictor(input_x)
         batch_size, _, grid_h, grid_w = output.shape
         #number of images add for each batches
         self.seen += batch_size
@@ -295,16 +295,20 @@ class YOLOv2Predictor(Chain):
             )
         print(" nb of img", self.c_img_nb)
         loss = x_loss + y_loss + w_loss + h_loss + c_loss + p_loss
-        return loss
+        return loss, h1
 
     def init_anchor(self, anchors):
         self.anchors = anchors
 
     def predict(self, input_x):
-        output = self.predictor(input_x)
+
+        output, h1 = self.predictor(input_x)
         batch_size, input_channel, input_h, input_w = input_x.shape
         batch_size, _, grid_h, grid_w = output.shape
-        x, y, w, h, conf, prob = F.split_axis(F.reshape(output, (batch_size, self.predictor.n_boxes, self.predictor.n_classes+5, grid_h, grid_w)), (1, 2, 3, 4, 5), axis=2)
+        x, y, w, h, conf, prob = F.split_axis(F.reshape(output, (batch_size, self.predictor.n_boxes, 5 + self.predictor.n_classes, grid_h, grid_w)), (1, 2, 3, 4, 5), axis=2)
+
+
+
         x = F.sigmoid(x) # activation of x
         y = F.sigmoid(y) # activation of y
         conf = F.sigmoid(conf) # confのactivation

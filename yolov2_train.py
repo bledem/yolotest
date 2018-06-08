@@ -9,17 +9,46 @@ import chainer.functions as F
 from yolov2 import *
 from lib.utils import *
 from lib.image_generator import *
+from darknet19 import *
+
 import matplotlib
 from laplotter import LossAccPlotter
 
+def copy_conv_layer(src, dst, layers):
+    for i in layers:
+        src_layer = eval("src.conv%d" % i)
+        dst_layer = eval("dst.conv%d" % i)
+        dst_layer.W = src_layer.W
+        dst_layer.b = src_layer.b
+
+def copy_bias_layer(src, dst, layers):
+    for i in layers:
+        src_layer = eval("src.bias%d" % i)
+        dst_layer = eval("dst.bias%d" % i)
+        dst_layer.b = src_layer.b
+
+def copy_bn_layer(src, dst, layers):
+    for i in layers:
+        src_layer = eval("src.bn%d" % i)
+        dst_layer = eval("dst.bn%d" % i)
+        dst_layer.N = src_layer.N
+        dst_layer.avg_var = src_layer.avg_var
+        dst_layer.avg_mean = src_layer.avg_mean
+        dst_layer.gamma = src_layer.gamma
+        dst_layer.eps = src_layer.eps
+
+
+
 # hyper parameters
 train_sizes = [320, 352, 384, 416, 448]
-item_path = "./items"
-background_path = "./backgrounds"
-initial_weight_file = "./backup/3000.model"
+#train_sizes = [448]
+#initial_weight_file = "./backup/92800img.model"
+initial_weight_file = None
+trained_weight_file = "./darknet19_448.model"
+
 backup_path = "backup"
 backup_file = "%s/backup.model" % (backup_path)
-batch_size =6
+batch_size =10
 max_batches = 20000
 learning_rate = 1e-5
 learning_schedules = { 
@@ -34,6 +63,7 @@ momentum = 0.9
 weight_decay = 0.005
 n_classes = 3
 n_boxes = 5
+partial_layer = 18
 
 start = time.time()
 plotter = LossAccPlotter(title="YOLOv2 loss",
@@ -43,7 +73,7 @@ plotter = LossAccPlotter(title="YOLOv2 loss",
                          show_loss_plot=True,
                          show_acc_plot=False,
                          show_plot_window=True,
-                         x_label="Batch")
+                         x_label="Number of input images")
 
 # load image generator
 #print("loading image generator...")
@@ -53,23 +83,63 @@ imageNet_data = ImageNet_data("./XmlToTxt/water_bottle_img", "./XmlToTxt/water_b
 
 # load model
 print("loading initial model...")
-yolov2 = YOLOv2(n_classes=n_classes, n_boxes=n_boxes)
-model = YOLOv2Predictor(yolov2)
-serializers.load_hdf5(initial_weight_file, model)
+trained_model = Darknet19()
+serializers.load_npz(trained_weight_file, trained_model) # load saved model
+trained_model = Darknet19Predictor(trained_model)
+
+
+if initial_weight_file is None:
+    print("inititializing with the darknet19_448 weights")
+    yolov2 = YOLOv2(n_classes=n_classes, n_boxes=n_boxes)
+    copy_conv_layer(trained_model.predictor, yolov2, range(1, partial_layer+1))
+    copy_bias_layer(trained_model.predictor, yolov2, range(1, partial_layer+1))
+    copy_bn_layer(trained_model.predictor, yolov2, range(1, partial_layer+1))
+    model = YOLOv2Predictor(yolov2)
+else :
+    print("initializing with serial_load backup weight")
+    yolov2 = YOLOv2(n_classes=n_classes, n_boxes=n_boxes)
+    model = YOLOv2Predictor(yolov2)
+    #serializers.load_hdf5(initial_weight_file, model)
+
+
 
 model.predictor.train = True
-model.predictor.finetune = False
+model.predictor.finetune = True
 cuda.get_device(0).use()
 model.to_gpu()
 
 optimizer = optimizers.MomentumSGD(lr=learning_rate, momentum=momentum)
 optimizer.use_cleargrads()
 optimizer.setup(model)
-#optimizer.add_hook(chainer.optimizer.WeightDecay(weight_decay))
+model.predictor.conv1.disable_update()
+model.predictor.conv2.disable_update()
+model.predictor.conv3.disable_update()
+model.predictor.conv4.disable_update()
+model.predictor.conv5.disable_update()
+model.predictor.conv6.disable_update()
+model.predictor.conv7.disable_update()
+model.predictor.conv8.disable_update()
+model.predictor.conv9.disable_update()
+model.predictor.conv10.disable_update()
+model.predictor.conv11.disable_update()
+model.predictor.conv12.disable_update()
+model.predictor.conv13.disable_update()
+model.predictor.conv14.disable_update()
+model.predictor.conv16.disable_update()
+#model.predictor.conv17.disable_update()
+#model.predictor.conv18.disable_update()
+#model.predictor.conv19.disable_update()
+
+
+optimizer.add_hook(chainer.optimizer.WeightDecay(weight_decay))
 
 # start to train
 print("start training")
 for batch in range(max_batches):
+
+
+
+
     if str(batch) in learning_schedules:
         optimizer.lr = learning_schedules[str(batch)]
     if batch % 80 == 0:
@@ -114,29 +184,32 @@ for batch in range(max_batches):
 
     # forward
     print("Computing the loss")
-    loss = model(x, t)
+    loss, h1 = model(x, t)
     now = time.time() - start
     print("batch: %d     input size: %dx%d     learning rate: %f    loss: %f time: %f" % (batch, input_height, input_width, optimizer.lr, loss.data, now))
     print("/////////////////////////////////////")
     now = time.time() - start
     #print("[batch %d (%d images)] learning rate: %f, loss: %f, accuracy: %f, time: %f" % (batch+1, (batch+1) * batch_size, optimizer.lr, loss.data, accuracy.data, now))
     #to avoid the first loss very high errors (due to??)
-    if batch > 500 :
-        plotter.add_values(batch,loss_train=loss.data)
+    if batch*batch_size > 1000 :
+        plotter.add_values(batch*batch_size,loss_train=loss.data)
     # backward and optimize
     model.cleargrads()
+    h1.unchain_backward()
     loss.backward()
     print("Updating the weights")
     optimizer.update()
 
 
-    if (batch+1) %1500 == 0:
+    if (batch+1) %1000 == 0:
         model_file = "%s/%s.model" % (backup_path, batch+1)
         print("saving model to %s" % (model_file))
         serializers.save_hdf5(model_file, model)
         serializers.save_hdf5(backup_file, model)
 
-
+        print ("check darknetNet ", trained_model.predictor.conv1.W[0],"and b /n",
+         trained_model.predictor.conv1.b,
+         "are the same as YOLOv2", model.predictor.conv1.W.data[0],  "and b /n")
 
 print("saving model to %s/yolov2_final.model" % (backup_path))
 serializers.save_hdf5("%s/yolov2_final.model" % (backup_path), model)
