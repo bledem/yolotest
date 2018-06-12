@@ -133,7 +133,8 @@ class YOLOv2Predictor(Chain):
         self.seen = 0
         self.unstable_seen = 5000
         self.mAP_tresh = 0.5
-        self.c_img_nb = np.zeros(self.predictor.n_classes)
+
+       # self.c_img_nb = np.zeros(self.predictor.n_classes)
 
     def __call__(self, input_x, t):
         output, h1= self.predictor(input_x)
@@ -151,7 +152,7 @@ class YOLOv2Predictor(Chain):
         # Preparation of data used to learn
         tw = np.zeros(w.shape, dtype=np.float32) # Learn for w and h to become null, for e^w et e^h to become closer from 1 -> 担当するbboxの倍率1)
         th = np.zeros(h.shape, dtype=np.float32) # for the relative width and height the activation is the exponential function
-        tx = np.tile(0.5, x.shape).astype(np.float32) # Learn for x and y become 0.5 after activation
+        tx = np.tile(0.5, x.shape).astype(np.float32) # Learn for x and y become 0.5 after activation (same matrix as x filled with 0.5)
         ty = np.tile(0.5, y.shape).astype(np.float32)
 
         if self.seen < self.unstable_seen: # Center does not exist bbox error learning scale is basically 0.1
@@ -173,11 +174,11 @@ class YOLOv2Predictor(Chain):
         best_ious = []
         #for each images of the batch
         for batch in range(batch_size):
+            #print("in debug YOLO, tbatch", t[batch])
 
-
-            self.c_img_nb[int(t[batch][0]["label"])] += 1
+           # self.c_img_nb[int(t[batch][4])] += 1
             #nb of truth box in the batch image
-            n_truth_boxes = len( t[batch])
+            n_truth_boxes = len(t[batch])
             #found boxes coordinates for this image
             box_x = (x[batch] + x_shift) / grid_w
             box_y = (y[batch] + y_shift) / grid_h
@@ -190,11 +191,15 @@ class YOLOv2Predictor(Chain):
 
 
             #for each truth boxes existing in this "batch image"
+            print("debug in size",n_truth_boxes, t[batch].shape)
+
+            #t[batch].reshape(5+self.predictor.n_classes,n_truth_boxes)
             for truth_index in range(n_truth_boxes):
-                truth_box_x = Variable(np.broadcast_to(np.array(t[batch][truth_index]["x"], dtype=np.float32), box_x.shape))
-                truth_box_y = Variable(np.broadcast_to(np.array(t[batch][truth_index]["y"], dtype=np.float32), box_y.shape))
-                truth_box_w = Variable(np.broadcast_to(np.array(t[batch][truth_index]["w"], dtype=np.float32), box_w.shape))
-                truth_box_h = Variable(np.broadcast_to(np.array(t[batch][truth_index]["h"], dtype=np.float32), box_h.shape))
+                truth_box_x = np.broadcast_to(np.array(float(t[batch][truth_index][0]), dtype=np.float32), box_x.shape)
+                truth_box_y = Variable(np.broadcast_to(np.array(float(t[batch][truth_index][1]), dtype=np.float32), box_y.shape))
+                truth_box_w = Variable(np.broadcast_to(np.array(float(t[batch][truth_index][2]), dtype=np.float32), box_w.shape))
+                truth_box_h = Variable(np.broadcast_to(np.array(float(t[batch][truth_index][3]), dtype=np.float32), box_h.shape))
+                truth_box_x= Variable(truth_box_x)
                 truth_box_x.to_gpu(), truth_box_y.to_gpu(), truth_box_w.to_gpu(), truth_box_h.to_gpu()
 
                 #Computation of all the ious between 1 truth bbox and all found boxes in this image
@@ -223,14 +228,17 @@ class YOLOv2Predictor(Chain):
 
 
             for truth_box in t[batch]:
-                truth_w = int(float(truth_box["x"]) * grid_w)
-                truth_h = int(float(truth_box["y"]) * grid_h)
+                if np.sum(truth_box)==0:
+                    #print("it was the padding", np.sum(truth_box))
+                    continue
+                truth_w = int(float(truth_box[0]) * grid_w)
+                truth_h = int(float(truth_box[1]) * grid_h)
                 truth_n = 0
                 best_iou = 0.0
 
                 #looking for the best fitting anchor for this truth box in term of lenght and width
                 for anchor_index, abs_anchor in enumerate(abs_anchors):
-                    iou = box_iou(Box(0, 0, float(truth_box["w"]), float(truth_box["h"])), Box(0, 0, abs_anchor[0], abs_anchor[1]))
+                    iou = box_iou(Box(0, 0, float(truth_box[2]), float(truth_box[3])), Box(0, 0, abs_anchor[0], abs_anchor[1]))
                     if best_iou < iou:
                         best_iou = iou
                         truth_n = anchor_index #and we will work only with this box now
@@ -238,15 +246,15 @@ class YOLOv2Predictor(Chain):
                 # For anchor in which object exists, let center be close to the true coordinate instead of 0.5.
                 #Make the scale of anchor approach the true scale instead of one. Set the learning scale to 1.
                 box_learning_scale[batch, truth_n, :, truth_h, truth_w] = 1.0 
-                tx[batch, truth_n, :, truth_h, truth_w] = float(truth_box["x"]) * grid_w - truth_w 
-                ty[batch, truth_n, :, truth_h, truth_w] = float(truth_box["y"]) * grid_h - truth_h
-                tw[batch, truth_n, :, truth_h, truth_w] = np.log(float(truth_box["w"]) / abs_anchors[truth_n][0])
-                th[batch, truth_n, :, truth_h, truth_w] = np.log(float(truth_box["h"]) / abs_anchors[truth_n][1])
+                tx[batch, truth_n, :, truth_h, truth_w] = float(truth_box[0]) * grid_w - truth_w
+                ty[batch, truth_n, :, truth_h, truth_w] = float(truth_box[1]) * grid_h - truth_h
+                tw[batch, truth_n, :, truth_h, truth_w] = np.log(float(truth_box[2]) / abs_anchors[truth_n][0])
+                th[batch, truth_n, :, truth_h, truth_w] = np.log(float(truth_box[3]) / abs_anchors[truth_n][1])
                 tprob[batch, :, truth_n, truth_h, truth_w] = 0
-                tprob[batch, int(truth_box["label"]), truth_n, truth_h, truth_w] = 1
+                tprob[batch, int(truth_box[4]), truth_n, truth_h, truth_w] = 1
 
                 # observation of IOU for every predicted box circled by anchor and the associated every truth box
-                full_truth_box = Box(float(truth_box["x"]), float(truth_box["y"]), float(truth_box["w"]), float(truth_box["h"]))
+                full_truth_box = Box(float(truth_box[0]), float(truth_box[1]), float(truth_box[2]), float(truth_box[3]))
                 predicted_box = Box(
                     (x[batch][truth_n][0][truth_h][truth_w].data.get() + truth_w) / grid_w, 
                     (y[batch][truth_n][0][truth_h][truth_w].data.get() + truth_h) / grid_h,
@@ -273,7 +281,7 @@ class YOLOv2Predictor(Chain):
 #                print()
 #best default iou is the best iou between an anchor box and the gtruth in term of lenght and width only (if both put on the same corner)
 #predicted_iou is the between the prediction and the truthbox
-            print("best default iou: %.2f   predicted iou: %.2f   confidence: %.2f   class: %s" % (best_iou, predicted_iou, conf[batch][truth_n][0][truth_h][truth_w].data, int(t[batch][0]["label"])))
+            print("best default iou: %.2f   predicted iou: %.2f   confidence: %.2f   class: %s" % (best_iou, predicted_iou, conf[batch][truth_n][0][truth_h][truth_w].data, int(t[batch][0][4])))
             print("-------------------------------")
         print("seen = %d" % self.seen)
 
@@ -293,9 +301,10 @@ class YOLOv2Predictor(Chain):
         print("x_loss: %f  y_loss: %f  w_loss: %f  h_loss: %f  c_loss: %f   p_loss: %f" % 
             (F.sum(x_loss).data, F.sum(y_loss).data, F.sum(w_loss).data, F.sum(h_loss).data, F.sum(c_loss).data, F.sum(p_loss).data)
             )
-        print(" nb of img", self.c_img_nb)
         loss = x_loss + y_loss + w_loss + h_loss + c_loss + p_loss
-        return loss, h1
+        print(" loss in yolov2", loss)
+
+        return loss
 
     def init_anchor(self, anchors):
         self.anchors = anchors

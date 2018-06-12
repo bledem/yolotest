@@ -4,11 +4,13 @@ import numpy as np
 import chainer
 import glob
 import os
-from chainer import serializers, optimizers, Variable, cuda
+from chainer import serializers, optimizers, Variable, iterators,training, cuda
+from chainer.training import extensions
 import chainer.functions as F
 from yolov2 import *
 from lib.utils import *
-from lib.image_generator import *
+#from lib.image_generator import *
+from lib.data_generator import *
 from darknet19 import *
 
 import matplotlib
@@ -37,18 +39,38 @@ def copy_bn_layer(src, dst, layers):
         dst_layer.gamma = src_layer.gamma
         dst_layer.eps = src_layer.eps
 
+#all our data are in batch with the shape (nb_imglabled_in_batch=3*, (img,label)=2*, (3channels*(310,375),3(taille du label=nb de classes)
+# batch[i] ith pair img,labl
+# batch[i][0] ith image, array of shape (3, 375, 500)
+# batch is a tuple, the pair is a tuple
+#def convert(batch, device):
+#    for pair in batch:
+#        img = pair[0]
+#        lbl = pair[1]
+#        print("result of the pairing img, labl",batch.shape  )
+#       # image = cv2.imread(img, cv2.IMREAD_UNCHANGED)
+#        sample_image = cv2.resize(img, (448, 448))
+#        sample_image = np.asarray(sample_image, dtype=np.float32) / 255.0
+#        sample_image = sample_image.transpose(2, 0, 1)
+#        pair = np.asarray(sample_image).astype(np.float32)
+def convert(batch, device):
+    max=0
+    for pair in batch:
+        print(pair[1])
+    return chainer.dataset.concat_examples(batch, device, padding=0)
 
 
 # hyper parameters
-train_sizes = [320, 352, 384, 416, 448]
+#train_sizes = [320, 352, 384, 416, 448]
 #train_sizes = [448]
-#initial_weight_file = "./backup/92800img.model"
-initial_weight_file = None
+initial_weight_file = "./backup/1100.model"
+#initial_weight_file = None
 trained_weight_file = "./darknet19_448.model"
 
 backup_path = "backup"
 backup_file = "%s/backup.model" % (backup_path)
 batch_size =10
+epoch = 1
 max_batches = 20000
 learning_rate = 1e-5
 learning_schedules = { 
@@ -79,7 +101,8 @@ plotter = LossAccPlotter(title="YOLOv2 loss",
 #print("loading image generator...")
 #generator = ImageGenerator(item_path, background_path)
 print("loading ImageNet generator")
-imageNet_data = ImageNet_data("./XmlToTxt/water_bottle_img", "./XmlToTxt/water_bottle_bbox", "./XmlToTxt/images_list.txt", n_classes)
+imageNet_data = ImageNet_data("/home/ubuntu/sdcard/YOLOv2-master/XmlToTxt/water_bottle_img",
+"/home/ubuntu/sdcard/YOLOv2-master/XmlToTxt/water_bottle_bbox", "/home/ubuntu/sdcard/YOLOv2-master/XmlToTxt/images_list.txt", n_classes )
 
 # load model
 print("loading initial model...")
@@ -126,94 +149,145 @@ model.predictor.conv12.disable_update()
 model.predictor.conv13.disable_update()
 model.predictor.conv14.disable_update()
 model.predictor.conv16.disable_update()
-#model.predictor.conv17.disable_update()
+model.predictor.conv17.disable_update()
 #model.predictor.conv18.disable_update()
 #model.predictor.conv19.disable_update()
 
 
 optimizer.add_hook(chainer.optimizer.WeightDecay(weight_decay))
 
+#Create Train and test datset
+train, test = imageNet_data.train_val_test()
+
+train_iter = iterators.SerialIterator(train, batch_size)
+test_iter = iterators.SerialIterator(test, batch_size, repeat=False, shuffle=False)
+
+# Set up a trainer
+updater = training.StandardUpdater(train_iter, optimizer, converter=convert, device=0)
+trainer = training.Trainer(updater, (epoch, 'epoch'), out="./backup/result")
+
+# Evaluate the model with the test dataset for each epoch
+trainer.extend(extensions.Evaluator(test_iter, model, device=0))
+
+# Dump a computational graph from 'loss' variable at the first iteration
+# The "main" refers to the target link of the "main" optimizer.
+#trainer.extend(extensions.dump_graph('main/loss'))
+
+# Take a snapshot at each epoch
+#trainer.extend(extensions.snapshot(), trigger=(args.epoch, 'epoch'))
+trainer.extend(extensions.snapshot(), trigger=(1, 'epoch'))
+
+# Write a log of evaluation statistics for each epoch
+trainer.extend(extensions.LogReport())
+
+# Print selected entries of the log to stdout
+# Here "main" refers to the target link of the "main" optimizer again, and
+# "validation" refers to the default name of the Evaluator extension.
+# Entries other than 'epoch' are reported by the Classifier link, called by
+# either the updater or the evaluator.
+trainer.extend(extensions.PrintReport(
+    ['epoch', 'main/loss', 'validation/main/loss', 'elapsed_time']))
+
+# Plot graph for loss for each epoch
+if extensions.PlotReport.available():
+    trainer.extend(extensions.PlotReport(
+        ['main/loss', 'validation/main/loss'],
+        x_key='epoch', file_name='loss.png'))
+else:
+    print('Warning: PlotReport is not available in your environment')
+# Print a progress bar to stdout
+trainer.extend(extensions.ProgressBar())
+
+# Run the training
+trainer.run()
+serializers.save_npz('{}/mymlp.model'.format("./backup/result"), model)
+
+
+
+
+
 # start to train
-print("start training")
-for batch in range(max_batches):
+#print("start training")
+#for batch in range(max_batches):
 
 
 
 
-    if str(batch) in learning_schedules:
-        optimizer.lr = learning_schedules[str(batch)]
-    if batch % 80 == 0:
-        #we take a random squared size we can found in train size
-        input_width = input_height = train_sizes[np.random.randint(len(train_sizes))]
-    # generate sample
-#    x, t = generator.generate_samples(
-#        n_samples=batch_size,
-#        n_items=1,
-#        crop_width=input_width,
-#        crop_height=input_height,
-#        min_item_scale=0.1,
-#        max_item_scale=0.6,
-#        rand_angle=45,
-#        minimum_crop=1,
-#        delta_hue=0.01,
-#        delta_sat_scale=0.5,
-#        delta_val_scale=0.5
-#    )
-#    x, t = generator.generate_simple_dataset(n_samples=batch_size, w_in=input_width,
-#        h_in=input_height)
 
-    x, t = imageNet_data.imageNet_yolo(n_samples=batch_size, w_in=input_width, h_in=input_height)
+#    if str(batch) in learning_schedules:
+#        optimizer.lr = learning_schedules[str(batch)]
+#    if batch % 80 == 0:
+#        #we take a random squared size we can found in train size
+#        input_width = input_height = train_sizes[np.random.randint(len(train_sizes))]
+#    # generate sample
+##    x, t = generator.generate_samples(
+##        n_samples=batch_size,
+##        n_items=1,
+##        crop_width=input_width,
+##        crop_height=input_height,
+##        min_item_scale=0.1,
+##        max_item_scale=0.6,
+##        rand_angle=45,
+##        minimum_crop=1,
+##        delta_hue=0.01,
+##        delta_sat_scale=0.5,
+##        delta_val_scale=0.5
+##    )
+##    x, t = generator.generate_simple_dataset(n_samples=batch_size, w_in=input_width,
+##        h_in=input_height)
 
-    for i, image in enumerate(x):
-        image = np.asarray(image, dtype=np.float32) * 255.0
-        image = np.transpose(image, (1, 2, 0)).copy()
-        cv2.imwrite( "data/training_yolo/img0"+str(batch)+".png" , image )
-        image = np.asarray(image, dtype=np.float32) / 255.0
+#    x, t = imageNet_data.imageNet_yolo(n_samples=batch_size, w_in=input_width, h_in=input_height)
 
-        width, height, _ = image.shape
-#        for truth_box in t[i]:
-#            box_x, box_y, box_w, box_h = truth_box['x']*width, truth_box['y']*height, truth_box['w']*width, truth_box['h']*height
-#            image = cv2.rectangle(image.copy(), (int(box_x-box_w/2), int(box_y-box_h/2)), (int(box_x+box_w/2), int(box_y+box_h/2)), (0, 0, 255), 3)
-#        cv2.imshow("feed images", image)
-#        cv2.waitKey(200)
+#    for i, image in enumerate(x):
+#        image = np.asarray(image, dtype=np.float32) * 255.0
+#        image = np.transpose(image, (1, 2, 0)).copy()
+#        cv2.imwrite( "data/training_yolo/img0"+str(batch)+".png" , image )
+#        image = np.asarray(image, dtype=np.float32) / 255.0
 
-
-    x = Variable(x)
-    x.to_gpu()
+#        width, height, _ = image.shape
+##        for truth_box in t[i]:
+##            box_x, box_y, box_w, box_h = truth_box['x']*width, truth_box['y']*height, truth_box['w']*width, truth_box['h']*height
+##            image = cv2.rectangle(image.copy(), (int(box_x-box_w/2), int(box_y-box_h/2)), (int(box_x+box_w/2), int(box_y+box_h/2)), (0, 0, 255), 3)
+##        cv2.imshow("feed images", image)
+##        cv2.waitKey(200)
 
 
-    # forward
-    print("Computing the loss")
-    loss, h1 = model(x, t)
-    now = time.time() - start
-    print("batch: %d     input size: %dx%d     learning rate: %f    loss: %f time: %f" % (batch, input_height, input_width, optimizer.lr, loss.data, now))
-    print("/////////////////////////////////////")
-    now = time.time() - start
-    #print("[batch %d (%d images)] learning rate: %f, loss: %f, accuracy: %f, time: %f" % (batch+1, (batch+1) * batch_size, optimizer.lr, loss.data, accuracy.data, now))
-    #to avoid the first loss very high errors (due to??)
-    if batch*batch_size > 1000 :
-        plotter.add_values(batch*batch_size,loss_train=loss.data)
-    # backward and optimize
-    model.cleargrads()
-    h1.unchain_backward()
-    loss.backward()
-    print("Updating the weights")
-    optimizer.update()
+#    x = Variable(x)
+#    x.to_gpu()
 
 
-    if (batch+1) %1000 == 0:
-        model_file = "%s/%s.model" % (backup_path, batch+1)
-        print("saving model to %s" % (model_file))
-        serializers.save_hdf5(model_file, model)
-        serializers.save_hdf5(backup_file, model)
+#    # forward
+#    print("Computing the loss")
+#    loss, h1 = model(x, t)
+#    now = time.time() - start
+#    print("batch: %d     input size: %dx%d     learning rate: %f    loss: %f time: %f" % (batch, input_height, input_width, optimizer.lr, loss.data, now))
+#    print("/////////////////////////////////////")
+#    now = time.time() - start
+#    #print("[batch %d (%d images)] learning rate: %f, loss: %f, accuracy: %f, time: %f" % (batch+1, (batch+1) * batch_size, optimizer.lr, loss.data, accuracy.data, now))
+#    #to avoid the first loss very high errors (due to??)
+#    if batch*batch_size > 1000 :
+#        plotter.add_values(batch*batch_size,loss_train=loss.data)
+#    # backward and optimize
+#    model.cleargrads()
+#    h1.unchain_backward()
+#    loss.backward()
+#    print("Updating the weights")
+#    optimizer.update()
 
-        print ("check darknetNet ", trained_model.predictor.conv1.W[0],"and b /n",
-         trained_model.predictor.conv1.b,
-         "are the same as YOLOv2", model.predictor.conv1.W.data[0],  "and b /n")
 
-print("saving model to %s/yolov2_final.model" % (backup_path))
-serializers.save_hdf5("%s/yolov2_final.model" % (backup_path), model)
+#    if (batch+1) %1000 == 0:
+#        model_file = "%s/%s.model" % (backup_path, batch+1)
+#        print("saving model to %s" % (model_file))
+#        serializers.save_hdf5(model_file, model)
+#        serializers.save_hdf5(backup_file, model)
+
+#        print ("check darknetNet ", trained_model.predictor.conv1.W[0],"and b /n",
+#         trained_model.predictor.conv1.b,
+#         "are the same as YOLOv2", model.predictor.conv1.W.data[0],  "and b /n")
+
+#print("saving model to %s/yolov2_final.model" % (backup_path))
+#serializers.save_hdf5("%s/yolov2_final.model" % (backup_path), model)
 
 
-model.to_cpu()
-serializers.save_hdf5("%s/yolov2_final_cpu.model" % (backup_path), model)
+#model.to_cpu()
+#serializers.save_hdf5("%s/yolov2_final_cpu.model" % (backup_path), model)
