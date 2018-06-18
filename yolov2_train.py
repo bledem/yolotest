@@ -53,11 +53,13 @@ def copy_bn_layer(src, dst, layers):
 #        sample_image = np.asarray(sample_image, dtype=np.float32) / 255.0
 #        sample_image = sample_image.transpose(2, 0, 1)
 #        pair = np.asarray(sample_image).astype(np.float32)
+
+
 def convert(batch, device):
-    max=0
-    for pair in batch:
-        print(pair[1])
-    return chainer.dataset.concat_examples(batch, device, padding=0)
+
+    #for pair in batch:
+        #print(pair[1])
+    return chainer.dataset.convert.concat_examples(batch, device, padding=0)
 
 
 # hyper parameters
@@ -69,8 +71,8 @@ trained_weight_file = "./darknet19_448.model"
 
 backup_path = "backup"
 backup_file = "%s/backup.model" % (backup_path)
-batch_size =10
-epoch = 1
+batch_size =7
+epoch = 100
 max_batches = 20000
 learning_rate = 1e-5
 learning_schedules = { 
@@ -127,29 +129,29 @@ else :
 
 
 model.predictor.train = True
-model.predictor.finetune = True
+model.predictor.finetune = False
 cuda.get_device(0).use()
 model.to_gpu()
 
 optimizer = optimizers.MomentumSGD(lr=learning_rate, momentum=momentum)
 optimizer.use_cleargrads()
 optimizer.setup(model)
-model.predictor.conv1.disable_update()
-model.predictor.conv2.disable_update()
-model.predictor.conv3.disable_update()
-model.predictor.conv4.disable_update()
-model.predictor.conv5.disable_update()
-model.predictor.conv6.disable_update()
-model.predictor.conv7.disable_update()
-model.predictor.conv8.disable_update()
-model.predictor.conv9.disable_update()
-model.predictor.conv10.disable_update()
-model.predictor.conv11.disable_update()
-model.predictor.conv12.disable_update()
-model.predictor.conv13.disable_update()
-model.predictor.conv14.disable_update()
-model.predictor.conv16.disable_update()
-model.predictor.conv17.disable_update()
+#model.predictor.conv1.disable_update()
+#model.predictor.conv2.disable_update()
+#model.predictor.conv3.disable_update()
+#model.predictor.conv4.disable_update()
+#model.predictor.conv5.disable_update()
+#model.predictor.conv6.disable_update()
+#model.predictor.conv7.disable_update()
+#model.predictor.conv8.disable_update()
+#model.predictor.conv9.disable_update()
+#model.predictor.conv10.disable_update()
+#model.predictor.conv11.disable_update()
+#model.predictor.conv12.disable_update()
+#model.predictor.conv13.disable_update()
+#model.predictor.conv14.disable_update()
+#model.predictor.conv16.disable_update()
+#model.predictor.conv17.disable_update()
 #model.predictor.conv18.disable_update()
 #model.predictor.conv19.disable_update()
 
@@ -167,10 +169,11 @@ updater = training.StandardUpdater(train_iter, optimizer, converter=convert, dev
 trainer = training.Trainer(updater, (epoch, 'epoch'), out="./backup/result")
 
 # Evaluate the model with the test dataset for each epoch
-trainer.extend(extensions.Evaluator(test_iter, model, device=0))
+trainer.extend(extensions.Evaluator(test_iter, model, converter=convert, device=0))
 
 # Dump a computational graph from 'loss' variable at the first iteration
 # The "main" refers to the target link of the "main" optimizer.
+print("trainer.observation", trainer.observation)
 #trainer.extend(extensions.dump_graph('main/loss'))
 
 # Take a snapshot at each epoch
@@ -178,15 +181,17 @@ trainer.extend(extensions.Evaluator(test_iter, model, device=0))
 trainer.extend(extensions.snapshot(), trigger=(1, 'epoch'))
 
 # Write a log of evaluation statistics for each epoch
-trainer.extend(extensions.LogReport())
+trainer.extend(extensions.LogReport(trigger=(10, 'iteration')))
+trainer.extend(extensions.PrintReport(
+      ['epoch', 'main/loss', 'validation/main/loss',
+       'main/accuracy', 'validation/main/accuracy', 'elapsed_time']))
+trainer.extend(extensions.ProgressBar())
 
 # Print selected entries of the log to stdout
 # Here "main" refers to the target link of the "main" optimizer again, and
 # "validation" refers to the default name of the Evaluator extension.
 # Entries other than 'epoch' are reported by the Classifier link, called by
 # either the updater or the evaluator.
-trainer.extend(extensions.PrintReport(
-    ['epoch', 'main/loss', 'validation/main/loss', 'elapsed_time']))
 
 # Plot graph for loss for each epoch
 if extensions.PlotReport.available():
@@ -200,10 +205,7 @@ trainer.extend(extensions.ProgressBar())
 
 # Run the training
 trainer.run()
-serializers.save_npz('{}/mymlp.model'.format("./backup/result"), model)
-
-
-
+#serializers.save_npz('{}/mymlp.model'.format("./backup/result"), model)
 
 
 # start to train

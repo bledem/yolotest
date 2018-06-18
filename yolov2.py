@@ -191,10 +191,10 @@ class YOLOv2Predictor(Chain):
 
 
             #for each truth boxes existing in this "batch image"
-            print("debug in size",n_truth_boxes, t[batch].shape)
-
             #t[batch].reshape(5+self.predictor.n_classes,n_truth_boxes)
             for truth_index in range(n_truth_boxes):
+                if np.sum(t[batch][truth_index])==0:
+                    continue
                 truth_box_x = np.broadcast_to(np.array(float(t[batch][truth_index][0]), dtype=np.float32), box_x.shape)
                 truth_box_y = Variable(np.broadcast_to(np.array(float(t[batch][truth_index][1]), dtype=np.float32), box_y.shape))
                 truth_box_w = Variable(np.broadcast_to(np.array(float(t[batch][truth_index][2]), dtype=np.float32), box_w.shape))
@@ -229,7 +229,7 @@ class YOLOv2Predictor(Chain):
 
             for truth_box in t[batch]:
                 if np.sum(truth_box)==0:
-                    #print("it was the padding", np.sum(truth_box))
+                   # print("it was the padding", np.sum(truth_box))
                     continue
                 truth_w = int(float(truth_box[0]) * grid_w)
                 truth_h = int(float(truth_box[1]) * grid_h)
@@ -268,7 +268,7 @@ class YOLOv2Predictor(Chain):
                 conf_learning_scale[batch, truth_n, :, truth_h, truth_w] = 10.0
 
 
-            print("best confidences and best conditional probability and predicted class of each grid:")
+        ##    print("best confidences and best conditional probability and predicted class of each grid:")
             #for i in range(grid_h):
 #                for j in range(grid_w):
 #                    print("%2d" % (int(conf[batch, :, :, i, j].data.max() * 100)), end=" ")
@@ -281,9 +281,9 @@ class YOLOv2Predictor(Chain):
 #                print()
 #best default iou is the best iou between an anchor box and the gtruth in term of lenght and width only (if both put on the same corner)
 #predicted_iou is the between the prediction and the truthbox
-            print("best default iou: %.2f   predicted iou: %.2f   confidence: %.2f   class: %s" % (best_iou, predicted_iou, conf[batch][truth_n][0][truth_h][truth_w].data, int(t[batch][0][4])))
-            print("-------------------------------")
-        print("seen = %d" % self.seen)
+         ##   print("best default iou: %.2f   predicted iou: %.2f   confidence: %.2f   class: %s" % (best_iou, predicted_iou, conf[batch][truth_n][0][truth_h][truth_w].data, int(t[batch][0][4])))
+          ##  print("-------------------------------")
+    ##    print("seen = %d" % self.seen)
 
         # loss calculation
         tx, ty, tw, th, tconf, tprob = Variable(tx), Variable(ty), Variable(tw), Variable(th), Variable(tconf), Variable(tprob)
@@ -298,11 +298,11 @@ class YOLOv2Predictor(Chain):
         h_loss = F.sum((th - h) ** 2 * box_learning_scale) / 2
         c_loss = F.sum((tconf - conf) ** 2 * conf_learning_scale) / 2
         p_loss = F.sum((tprob - prob) ** 2) / 2
-        print("x_loss: %f  y_loss: %f  w_loss: %f  h_loss: %f  c_loss: %f   p_loss: %f" % 
-            (F.sum(x_loss).data, F.sum(y_loss).data, F.sum(w_loss).data, F.sum(h_loss).data, F.sum(c_loss).data, F.sum(p_loss).data)
-            )
+     ##   print("x_loss: %f  y_loss: %f  w_loss: %f  h_loss: %f  c_loss: %f   p_loss: %f" %
+       ##     (F.sum(x_loss).data, F.sum(y_loss).data, F.sum(w_loss).data, F.sum(h_loss).data, F.sum(c_loss).data, F.sum(p_loss).data)
+         ##   )
         loss = x_loss + y_loss + w_loss + h_loss + c_loss + p_loss
-        print(" loss in yolov2", loss)
+ ##       print(" loss in yolov2", loss)
 
         return loss
 
