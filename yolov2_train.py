@@ -54,13 +54,15 @@ def copy_bn_layer(src, dst, layers):
 #        sample_image = sample_image.transpose(2, 0, 1)
 #        pair = np.asarray(sample_image).astype(np.float32)
 
-
+CHAINER_DEBUG=1
 def convert(batch, device):
 
     #for pair in batch:
         #print(pair[1])
     return chainer.dataset.convert.concat_examples(batch, device, padding=0)
 
+def print_obs(t):
+    print("trainer.observation", trainer.observation)
 
 # hyper parameters
 #train_sizes = [320, 352, 384, 416, 448]
@@ -88,6 +90,8 @@ weight_decay = 0.005
 n_classes = 3
 n_boxes = 5
 partial_layer = 18
+chainer.CHAINER_DEBUG=1
+print("debug", chainer.is_debug())
 
 start = time.time()
 plotter = LossAccPlotter(title="YOLOv2 loss",
@@ -129,7 +133,7 @@ else :
 
 
 model.predictor.train = True
-model.predictor.finetune = False
+model.predictor.finetune = False  ####or True ??
 cuda.get_device(0).use()
 model.to_gpu()
 
@@ -150,6 +154,7 @@ optimizer.setup(model)
 #model.predictor.conv12.disable_update()
 #model.predictor.conv13.disable_update()
 #model.predictor.conv14.disable_update()
+#model.predictor.conv15.disable_update()
 #model.predictor.conv16.disable_update()
 #model.predictor.conv17.disable_update()
 #model.predictor.conv18.disable_update()
@@ -173,19 +178,17 @@ trainer.extend(extensions.Evaluator(test_iter, model, converter=convert, device=
 
 # Dump a computational graph from 'loss' variable at the first iteration
 # The "main" refers to the target link of the "main" optimizer.
-print("trainer.observation", trainer.observation)
 #trainer.extend(extensions.dump_graph('main/loss'))
 
 # Take a snapshot at each epoch
 #trainer.extend(extensions.snapshot(), trigger=(args.epoch, 'epoch'))
 trainer.extend(extensions.snapshot(), trigger=(1, 'epoch'))
-
+trainer.extend(print_obs, trigger=(10, 'iteration'))
 # Write a log of evaluation statistics for each epoch
 trainer.extend(extensions.LogReport(trigger=(10, 'iteration')))
 trainer.extend(extensions.PrintReport(
       ['epoch', 'main/loss', 'validation/main/loss',
        'main/accuracy', 'validation/main/accuracy', 'elapsed_time']))
-trainer.extend(extensions.ProgressBar())
 
 # Print selected entries of the log to stdout
 # Here "main" refers to the target link of the "main" optimizer again, and

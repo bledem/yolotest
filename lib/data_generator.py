@@ -65,8 +65,8 @@ def transform(inputs):
    # img = img - mean[:, None, None]
     img = img.astype(np.float32)
     # ランダムに左右反転
-    if np.random.rand() > 0.5:
-        img = img[..., ::-1]
+#    if np.random.rand() > 0.5:
+#        img = img[..., ::-1]
 
     #we have to find how many truth box is there
     nb_truth_box = int((len(label)-1)/ 5)
@@ -80,6 +80,8 @@ def transform(inputs):
         #hot_label = np.append(hot_label, one_hot_label)
         ground_truths.append(hot_label)
     ground_truths= np.array(ground_truths)
+#    img = Variable(img)
+#    img.to_gpu()
     #print(" debug in transform ", ground_truths )
 
     return img, ground_truths
@@ -146,6 +148,7 @@ class ImageNet_data():
 
 
     def train_val_test(self):
+        #img_lbl has the size of the dataset, each element is the image and
         img_lbl=list(zip(self.img_names,self.label_list))
 
 #        for i in range(10):
@@ -153,9 +156,9 @@ class ImageNet_data():
         base = datasets.LabeledImageDataset(img_lbl, label_dtype= np.dtype('Float64'))
         tbase = datasets.TransformDataset(base, transform)
 
-        #image, lbl = base.get_example(5)
-#        image = np.asarray(image, dtype=np.float32) /255.0
-#        image = np.transpose(image, (1, 2, 0)).copy()
+        image, lbl = tbase.get_example(5)
+        image = np.asarray(image, dtype=np.float32) /255.0
+        image = np.transpose(image, (1, 2, 0)).copy()
 #        print("result of the pairing img, labl", image.shape, lbl  )
 #        cv2.imshow("image", image)
 #        cv2.waitKey(0)
