@@ -158,7 +158,10 @@ class ImageNet_data():
 
         image, lbl = tbase.get_example(5)
         image = np.asarray(image, dtype=np.float32) /255.0
+#before (3, 448, 448)
+#after (448, 448, 3)
         image = np.transpose(image, (1, 2, 0)).copy()
+
 #        print("result of the pairing img, labl", image.shape, lbl  )
 #        cv2.imshow("image", image)
 #        cv2.waitKey(0)
