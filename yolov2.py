@@ -140,6 +140,8 @@ class YOLOv2Predictor(Chain):
 #        print("type 0x in YOLOv2", type(input_x[0]), input_x[0].shape)
 #        print("type 0.5x in YOLOv2", type(input_x[1]), input_x[1].shape)
 
+###NO BACKPROPA
+        #with chainer.using_config('enable_backprop', False):
         input_x = Variable(input_x)
         input_x.to_gpu()
 #        print("type x in YOLOv2", type(input_x))

@@ -67,7 +67,7 @@ def print_obs(t):
 # hyper parameters
 #train_sizes = [320, 352, 384, 416, 448]
 #train_sizes = [448]
-initial_weight_file = "./backup/1100.model"
+initial_weight_file = "yolov2.weights"
 #initial_weight_file = None
 trained_weight_file = "./darknet19_448.model"
 

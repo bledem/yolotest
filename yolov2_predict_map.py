@@ -13,7 +13,7 @@ from yolov2 import *
 class drinkPredictor:
     def __init__(self):
         # hyper parameters
-        #weight_file = "./backup/8800.model"
+        weight_file = "./backup/28_June_Chainer_pure_batch_6/yolov2_load.model"
         self.n_classes = 3
         self.n_boxes = 5
         self.detection_thresh = 0.6
@@ -27,7 +27,7 @@ class drinkPredictor:
         print("loading drink model...")
         yolov2 = YOLOv2(n_classes=self.n_classes, n_boxes=self.n_boxes)
         model = YOLOv2Predictor(yolov2)
-       # serializers.load_hdf5(weight_file, model) # load saved model
+        serializers.load_hdf5(weight_file, model) # load saved model
         model.predictor.train = False
         model.predictor.finetune = False
         self.model = model

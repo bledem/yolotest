@@ -14,7 +14,7 @@ input_height, input_width = (448, 448)
 item_path = "./items"
 background_path = "./backgrounds"
 label_file = "./data/label.txt"
-initial_weights_file = "backup/darknet19_final.model"
+#initial_weights_file = "backup/darknet19_final.model"
 backup_path = "backup"
 batch_size = 16
 max_batches = 3000
@@ -34,8 +34,8 @@ with open(label_file, "r") as f:
 print("loading model...")
 model = Darknet19Predictor(Darknet19())
 backup_file = "%s/backup.model" % (backup_path)
-if os.path.isfile(backup_file):
-    serializers.load_hdf5(initial_weights_file, model) # load saved model
+#if os.path.isfile(backup_file):
+  #  serializers.load_hdf5(initial_weights_file, model) # load saved model
 model.predictor.train = True
 model.predictor.finetune = True
 cuda.get_device(0).use()

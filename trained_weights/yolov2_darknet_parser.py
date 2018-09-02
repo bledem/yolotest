@@ -1,3 +1,5 @@
+#important this code is to upload a DarknetPredictor only after a partial weight
+
 import numpy as np
 import chainer
 from chainer import cuda, Function, gradient_check, Variable, optimizers, serializers, utils
@@ -7,6 +9,8 @@ import chainer.links as L
 from chainer import training
 from chainer.training import extensions
 import argparse
+import sys
+sys.path.insert(0, '/home/ubuntu/sdcard/YOLOv2')
 from lib.utils import *
 from lib.image_generator import *
 from yolov2 import *
@@ -23,11 +27,11 @@ dat=np.fromfile(file, dtype=np.float32)[4:] # skip header(4xint)
 
 # load model
 print("loading initial model...")
-n_classes = 1000
-#n_boxes = 5
-#last_out = (n_classes + 5) * n_boxes
+n_classes = 80
+n_boxes = 5
+last_out = (n_classes + 5) * n_boxes
 
-yolov2 = Darknet19()
+darknet = Darknet19()
 
 #yolov2 = YOLOv2(n_classes=n_classes, n_boxes=n_boxes)
 #yolov2.train = True
@@ -62,27 +66,27 @@ for i, l in enumerate(layers):
     ksize = l[2]
     if i < 18:
         # load bias(Bias.bはout_chと同じサイズ)
-        txt = "yolov2.bias%d.b.data = dat[%d:%d]" % (i+1, offset, offset+out_ch)
+        txt = "darknet.bias%d.b.data = dat[%d:%d]" % (i+1, offset, offset+out_ch)
         offset+=out_ch
         exec(txt)
 
         # load bn(BatchNormalization.gammaはout_chと同じサイズ)
-        txt = "yolov2.bn%d.gamma.data = dat[%d:%d]" % (i+1, offset, offset+out_ch)
+        txt = "darknet.bn%d.gamma.data = dat[%d:%d]" % (i+1, offset, offset+out_ch)
         offset+=out_ch
         exec(txt)
 
         # (BatchNormalization.avg_meanはout_chと同じサイズ)
-        txt = "yolov2.bn%d.avg_mean = dat[%d:%d]" % (i+1, offset, offset+out_ch)
+        txt = "darknet.bn%d.avg_mean = dat[%d:%d]" % (i+1, offset, offset+out_ch)
         offset+=out_ch
         exec(txt)
 
         # (BatchNormalization.avg_varはout_chと同じサイズ)
-        txt = "yolov2.bn%d.avg_var = dat[%d:%d]" % (i+1, offset, offset+out_ch)
+        txt = "darknet.bn%d.avg_var = dat[%d:%d]" % (i+1, offset, offset+out_ch)
         offset+=out_ch
         exec(txt)
 
     # load convolution weight(Convolution2D.Wは、outch * in_ch * フィルタサイズ。これを(out_ch, in_ch, 3, 3)にreshapeする)
-    txt = "yolov2.conv%d.W.data = dat[%d:%d].reshape(%d, %d, %d, %d)" % (i+1, offset, offset+(out_ch*in_ch*ksize*ksize), out_ch, in_ch, ksize, ksize)
+    txt = "darknet.conv%d.W.data = dat[%d:%d].reshape(%d, %d, %d, %d)" % (i+1, offset, offset+(out_ch*in_ch*ksize*ksize), out_ch, in_ch, ksize, ksize)
     offset+= (out_ch*in_ch*ksize*ksize)
     exec(txt)
     print(i+1, offset)
@@ -92,14 +96,14 @@ for i, l in enumerate(layers):
 #out_ch = last_out
 #ksize = 1
 
-#txt = "yolov2.bias%d.b.data = dat[%d:%d]" % (i+2, offset, offset+out_ch)
+#txt = "darknet.bias%d.b.data = dat[%d:%d]" % (i+2, offset, offset+out_ch)
 #offset+=out_ch
 #exec(txt)
 
-#txt = "yolov2.conv%d.W.data = dat[%d:%d].reshape(%d, %d, %d, %d)" % (i+2, offset, offset+(out_ch*in_ch*ksize*ksize), out_ch, in_ch, ksize, ksize)
+#txt = "darknet.conv%d.W.data = dat[%d:%d].reshape(%d, %d, %d, %d)" % (i+2, offset, offset+(out_ch*in_ch*ksize*ksize), out_ch, in_ch, ksize, ksize)
 #offset+=out_ch*in_ch*ksize*ksize
 #exec(txt)
 #print(i+2, offset)
 
-print("save weights file to darknet19_448.model")
-serializers.save_npz("darknet19_448.model", yolov2)
+print("save weights file to darknet_npz.model")
+serializers.save_npz("darknet_npz.model", darknet)

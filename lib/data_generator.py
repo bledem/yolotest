@@ -56,7 +56,7 @@ def resize(img, input_width, input_height):
 def transform(inputs):
     train_sizes = [320, 352, 384, 416, 448]
     #input_width = input_height = train_sizes[np.random.randint(len(train_sizes))]
-    input_width = input_height = 448
+    input_width = input_height = 416
     #print("image size for the batch", input_width, input_height)
     ground_truths = []
     img, label = inputs

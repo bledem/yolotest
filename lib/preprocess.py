@@ -14,7 +14,7 @@ def download_image():
 
     return image_file_path
 
-
+#box structure is x,y,h,w
 def _offset_boxes(boxes, im_shape, scale, offs, flip):
     if len(boxes) == 0:
         return boxes

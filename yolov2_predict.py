@@ -10,13 +10,13 @@ from yolov2 import *
 class drinkPredictor:
     def __init__(self):
         # hyper parameters
-        weight_file = "/home/ubuntu/sdcard/YOLOv2-master/backup/11000.model"
+        weight_file = "/home/ubuntu/sdcard/YOLOv2/backup/11000.model"
         self.n_classes = 3
         self.n_boxes = 5
         self.detection_thresh = 0.6
         self.iou_thresh = 0.6
-        #self.label_file = "/home/ubuntu/sdcard/YOLOv2-master/data/label.txt"
-        self.label_file = "/home/ubuntu/sdcard/YOLOv2-master/XmlToTxt/classes.txt"
+        #self.label_file = "/home/ubuntu/sdcard/YOLOv2/data/label.txt"
+        self.label_file = "/home/ubuntu/sdcard/YOLOv2/XmlToTxt/classes.txt"
         with open(self.label_file, "r") as f:
             self.labels = f.read().strip().split("\n")
 

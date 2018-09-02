@@ -16,20 +16,20 @@ partial_layer = 18
 def copy_conv_layer(src, dst, layers):
     for i in layers:
         src_layer = eval("src.conv%d" % i)
-        dst_layer = eval("dst.conv%d" % i)        
+        dst_layer = eval("dst.conv%d" % i)
         dst_layer.W = src_layer.W
         dst_layer.b = src_layer.b
 
 def copy_bias_layer(src, dst, layers):
     for i in layers:
         src_layer = eval("src.bias%d" % i)
-        dst_layer = eval("dst.bias%d" % i)        
+        dst_layer = eval("dst.bias%d" % i)
         dst_layer.b = src_layer.b
 
 def copy_bn_layer(src, dst, layers):
     for i in layers:
         src_layer = eval("src.bn%d" % i)
-        dst_layer = eval("dst.bn%d" % i)        
+        dst_layer = eval("dst.bn%d" % i)
         dst_layer.N = src_layer.N
         dst_layer.avg_var = src_layer.avg_var
         dst_layer.avg_mean = src_layer.avg_mean
@@ -38,11 +38,11 @@ def copy_bn_layer(src, dst, layers):
 
 # load model
 print("loading original model...")
-input_weight_file = "./darknet19_npz.model"
+input_weight_file = "./darknet19_448.model"
 output_weight_file = "./backup/partial_npz.model"
 
 model = Darknet19Predictor(Darknet19())
-serializers.load_npz(input_weight_file, model) # load saved model
+serializers.load_hdf5(input_weight_file, model) # load saved model
 
 yolov2 = YOLOv2(n_classes=n_classes, n_boxes=n_boxes)
 copy_conv_layer(model.predictor, yolov2, range(1, partial_layer+1))
