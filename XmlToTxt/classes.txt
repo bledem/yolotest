@@ -1,0 +1,3 @@
+pet_bottle
+plastic_bag
+trash_can
